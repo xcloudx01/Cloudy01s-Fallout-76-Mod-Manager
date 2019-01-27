@@ -19,7 +19,7 @@ Features:
 1. Find a mod you like and copy its .ba2 mod file to your Fallout76's Data folder.
 2. Run the Fallout 76 Mod Manager. If it's already running, click "Re-scan for new mods"
 3. Simply check or un-check the mods you want to use.
-4. Click the "Save Fallout76Custom.ini"
+4. Click the "Save Settings" button.
 5. Play the game!
 
 ## Notes
