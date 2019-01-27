@@ -11,7 +11,7 @@ Features:
 - Quickly turn on/off intro videos, motion blur, fps cap, depth of field.
 
 ## Initial Setup
-1. Download the .exe file to anywhere and run it.
+1. Download the .exe file and run it.
 2. It will attempt to detect where your game is currently installed. If it does not find your game, you will be prompted to provide the path to your Fallout76's Data folder (This is typically in a path such as: C:\Program Files\Bethesda.net Launcher\Games\Fallout76\Data)
 3. It will then attempt to auto-detect where your current Fallout76Custom.ini is, if the file doesn't already exist yet, it will create a blank one for you.
 
