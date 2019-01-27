@@ -1,4 +1,4 @@
-# FO76ModManager
+# Fallout 76 Mod Manager
 ## Overview:
 
 This tool makes it a snap to install new mods and manage existing ones. It also makes it easy to quickly enable/disable various tweaks.
