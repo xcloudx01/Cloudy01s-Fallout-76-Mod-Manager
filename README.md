@@ -26,6 +26,7 @@ Features:
 The manager assigns mods in each category to load in alphabetical order. The ability to change it to a custom order could possibly be added if there is demand to add this feature.
 
 If a mod is found to be enabled in the .ini file but its .ba2 file is missing, it will be auto-removed from the .ini file.
+
 No tweaks you've manually set in the .ini file will be overwritten, unless specifically changed within the Mod Manager, such as enabling/disabling tweaks.
 
 ### Credits
