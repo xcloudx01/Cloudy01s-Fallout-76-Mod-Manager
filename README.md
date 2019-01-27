@@ -34,6 +34,4 @@ No tweaks you've manually set in the .ini file will be overwritten, unless speci
 - The cool people at [PCGW](https://pcgamingwiki.com/wiki/Fallout_76) for providing tweak commands.
 
 ### License and Copyright
-[Fallout Mod Manager](https://sourceforge.net/projects/fomm/) is licensed under GPLv3.
-
 All rights on source code and libraries belong to their respective owners.
