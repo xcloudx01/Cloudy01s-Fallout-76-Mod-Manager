@@ -322,50 +322,50 @@ IniFileHelpButton:
 ;;;;;;;;;;;;;;;;;;;;;
 
 ;Mod Management
-GetModsCorrectLocation(TheMod)
-{
-  global ModsFolder
-
-  ;We should re-scan existing mods if the mod was updated (In-case it needs a changed load order)
-  if HasBeenModified(TheMod)
-    filedelete,%A_Temp%\FO76ModMan.temp\%TheMod%.txt
-
-  ;We need to dump the contents of the mod so we can scan what files it contains, then sort accordingly
-    ifnotexist,%A_Temp%\FO76ModMan.temp\%TheMod%.txt
-    {
-      cmd := "cmd.exe /q /c " . A_Temp . "\FO76ModMan.temp\bsab.exe /l """ . ModsFolder . "\" . TheMod . """" ;This mess is because the command must be literal: bsab.exe "C:\PATH-TO-FILE\TheMod.ba2" to work.
-    ;  msgbox % cmd
-      ListOfFiles := ComObjCreate("WScript.Shell").Exec(cmd).StdOut.ReadAll()
-      FileAppend,%ListOfFiles%,%A_Temp%\FO76ModMan.temp\%TheMod%.txt
-    }
-    else
-      fileread,ListOfFiles,%A_Temp%\FO76ModMan.temp\%TheMod%.txt
-
-  ;Determine the correct folder. Certain types of mods need to be in specific load orders, because FO76 just works in funky ways.
-  if InStr(ListOfFiles,"model") or InStr(ListOfFiles,"texture") or InStr(ListOfFiles,"sfx")
-    return "sResourceIndexFileList"
-  else if InStr(ListOfFiles,"interface") or InStr(ListOfFiles,"strings") or InStr(ListOfFiles,"music")
-   return "sResourceStartUpArchiveList"
-  else
-    return "sResourceArchive2List"
-}
-
-
-HasBeenModified(TheMod)
-{
-  global ModsFolder
-
-  FileGetTime,CurrentModifiedDate,%ModsFolder%\%TheMod%
-  Iniread,OldModifiedDate,%A_Temp%\FO76ModMan.temp\ModModifiedDateDatabase.ini,ModifiedDates,%TheMod%
-
-  if CurrentModifiedDate = %OldModifiedDate%
-    return false
-  else
+  GetModsCorrectLocation(TheMod)
   {
-    IniWrite,%CurrentModifiedDate%,%A_Temp%\FO76ModMan.temp\ModModifiedDateDatabase.ini,ModifiedDates,%TheMod%
-    return true
+    global ModsFolder
+
+    ;We should re-scan existing mods if the mod was updated (In-case it needs a changed load order)
+      if HasBeenModified(TheMod)
+        filedelete,%A_Temp%\FO76ModMan.temp\%TheMod%.txt
+
+    ;We need to dump the contents of the mod so we can scan what files it contains, then sort accordingly
+      ifnotexist,%A_Temp%\FO76ModMan.temp\%TheMod%.txt
+      {
+        cmd := "cmd.exe /q /c " . A_Temp . "\FO76ModMan.temp\bsab.exe /l """ . ModsFolder . "\" . TheMod . """" ;This mess is because the command must be literal: bsab.exe "C:\PATH-TO-FILE\TheMod.ba2" to work.
+      ;  msgbox % cmd
+        ListOfFiles := ComObjCreate("WScript.Shell").Exec(cmd).StdOut.ReadAll()
+        FileAppend,%ListOfFiles%,%A_Temp%\FO76ModMan.temp\%TheMod%.txt
+      }
+      else
+        fileread,ListOfFiles,%A_Temp%\FO76ModMan.temp\%TheMod%.txt
+
+    ;Determine the correct folder. Certain types of mods need to be in specific load orders, because FO76 just works in funky ways.
+      if InStr(ListOfFiles,"model") or InStr(ListOfFiles,"texture") or InStr(ListOfFiles,"sfx")
+        return "sResourceIndexFileList"
+      else if InStr(ListOfFiles,"interface") or InStr(ListOfFiles,"strings") or InStr(ListOfFiles,"music")
+       return "sResourceStartUpArchiveList"
+      else
+        return "sResourceArchive2List"
   }
-}
+
+
+  HasBeenModified(TheMod)
+  {
+    global ModsFolder
+
+    FileGetTime,CurrentModifiedDate,%ModsFolder%\%TheMod%
+    Iniread,OldModifiedDate,%A_Temp%\FO76ModMan.temp\ModModifiedDateDatabase.ini,ModifiedDates,%TheMod%
+
+    if CurrentModifiedDate = %OldModifiedDate%
+      return false
+    else
+    {
+      IniWrite,%CurrentModifiedDate%,%A_Temp%\FO76ModMan.temp\ModModifiedDateDatabase.ini,ModifiedDates,%TheMod%
+      return true
+    }
+  }
 
 
   FindModFolder()
@@ -471,116 +471,116 @@ HasBeenModified(TheMod)
   WheelDown::
   +WheelUp::
   +WheelDown::
-      ; SB_LINEDOWN=1, SB_LINEUP=0, WM_HSCROLL=0x114, WM_VSCROLL=0x115
-      OnScroll(InStr(A_ThisHotkey,"Down") ? 1 : 0, 0, GetKeyState("Shift") ? 0x114 : 0x115, WinExist())
-  return
+    ; SB_LINEDOWN=1, SB_LINEUP=0, WM_HSCROLL=0x114, WM_VSCROLL=0x115
+    OnScroll(InStr(A_ThisHotkey,"Down") ? 1 : 0, 0, GetKeyState("Shift") ? 0x114 : 0x115, WinExist())
+    return
   #IfWinActive
 
   UpdateScrollBars(GuiNum, GuiWidth, GuiHeight)
   {
-      static SIF_RANGE=0x1, SIF_PAGE=0x2, SIF_DISABLENOSCROLL=0x8, SB_HORZ=0, SB_VERT=1
+    static SIF_RANGE=0x1, SIF_PAGE=0x2, SIF_DISABLENOSCROLL=0x8, SB_HORZ=0, SB_VERT=1
 
-      Gui, %GuiNum%:Default
-      Gui, +LastFound
+    Gui, %GuiNum%:Default
+    Gui, +LastFound
 
-      ; Calculate scrolling area.
-      Left := Top := 9999
-      Right := Bottom := 0
-      WinGet, ControlList, ControlList
-      Loop, Parse, ControlList, `n
-      {
-          GuiControlGet, c, Pos, %A_LoopField%
-          if (cX < Left)
-              Left := cX
-          if (cY < Top)
-              Top := cY
-          if (cX + cW > Right)
-              Right := cX + cW
-          if (cY + cH > Bottom)
-              Bottom := cY + cH
-      }
-      Left -= 8
-      Top -= 8
-      Right += 8
-      Bottom += 8
-      ScrollWidth := Right-Left
-      ScrollHeight := Bottom-Top
+    ; Calculate scrolling area.
+    Left := Top := 9999
+    Right := Bottom := 0
+    WinGet, ControlList, ControlList
+    Loop, Parse, ControlList, `n
+    {
+        GuiControlGet, c, Pos, %A_LoopField%
+        if (cX < Left)
+            Left := cX
+        if (cY < Top)
+            Top := cY
+        if (cX + cW > Right)
+            Right := cX + cW
+        if (cY + cH > Bottom)
+            Bottom := cY + cH
+    }
+    Left -= 8
+    Top -= 8
+    Right += 8
+    Bottom += 8
+    ScrollWidth := Right-Left
+    ScrollHeight := Bottom-Top
 
-      ; Initialize SCROLLINFO.
-      VarSetCapacity(si, 28, 0)
-      NumPut(28, si, 0, "uint") ; cbSize
-      NumPut(SIF_RANGE | SIF_PAGE, si, 4, "uint") ; fMask
+    ; Initialize SCROLLINFO.
+    VarSetCapacity(si, 28, 0)
+    NumPut(28, si, 0, "uint") ; cbSize
+    NumPut(SIF_RANGE | SIF_PAGE, si, 4, "uint") ; fMask
 
-      ; Update horizontal scroll bar.
-      NumPut(ScrollWidth, si, 12, "int") ; nMax
-      NumPut(GuiWidth, si, 16, "uint") ; nPage
-      DllCall("SetScrollInfo", "ptr", WinExist(), "int", SB_HORZ, "ptr", &si, "int", 1)
+    ; Update horizontal scroll bar.
+    NumPut(ScrollWidth, si, 12, "int") ; nMax
+    NumPut(GuiWidth, si, 16, "uint") ; nPage
+    DllCall("SetScrollInfo", "ptr", WinExist(), "int", SB_HORZ, "ptr", &si, "int", 1)
 
-      ; Update vertical scroll bar.
-  ;     NumPut(SIF_RANGE | SIF_PAGE | SIF_DISABLENOSCROLL, si, 4, "uint") ; fMask
-      NumPut(ScrollHeight, si, 12, "int") ; nMax
-      NumPut(GuiHeight, si, 16, "uint") ; nPage
-      DllCall("SetScrollInfo", "ptr", WinExist(), "int", SB_VERT, "ptr", &si, "int", 1)
+    ; Update vertical scroll bar.
+;     NumPut(SIF_RANGE | SIF_PAGE | SIF_DISABLENOSCROLL, si, 4, "uint") ; fMask
+    NumPut(ScrollHeight, si, 12, "int") ; nMax
+    NumPut(GuiHeight, si, 16, "uint") ; nPage
+    DllCall("SetScrollInfo", "ptr", WinExist(), "int", SB_VERT, "ptr", &si, "int", 1)
 
-      if (Left < 0 && Right < GuiWidth)
-          x := Abs(Left) > GuiWidth-Right ? GuiWidth-Right : Abs(Left)
-      if (Top < 0 && Bottom < GuiHeight)
-          y := Abs(Top) > GuiHeight-Bottom ? GuiHeight-Bottom : Abs(Top)
-      if (x || y)
-          DllCall("ScrollWindow", "ptr", WinExist(), "int", x, "int", y, "ptr", 0, "ptr", 0)
+    if (Left < 0 && Right < GuiWidth)
+        x := Abs(Left) > GuiWidth-Right ? GuiWidth-Right : Abs(Left)
+    if (Top < 0 && Bottom < GuiHeight)
+        y := Abs(Top) > GuiHeight-Bottom ? GuiHeight-Bottom : Abs(Top)
+    if (x || y)
+        DllCall("ScrollWindow", "ptr", WinExist(), "int", x, "int", y, "ptr", 0, "ptr", 0)
   }
 
   OnScroll(wParam, lParam, msg, hwnd)
   {
-      static SIF_ALL=0x17, SCROLL_STEP=10
+    static SIF_ALL=0x17, SCROLL_STEP=10
 
-      bar := msg=0x115 ; SB_HORZ=0, SB_VERT=1
+    bar := msg=0x115 ; SB_HORZ=0, SB_VERT=1
 
-      VarSetCapacity(si, 28, 0)
-      NumPut(28, si, 0, "uint") ; cbSize
-      NumPut(SIF_ALL, si, 4, "uint") ; fMask
-      if !DllCall("GetScrollInfo", "ptr", hwnd, "int", bar, "ptr", &si)
-          return
+    VarSetCapacity(si, 28, 0)
+    NumPut(28, si, 0, "uint") ; cbSize
+    NumPut(SIF_ALL, si, 4, "uint") ; fMask
+    if !DllCall("GetScrollInfo", "ptr", hwnd, "int", bar, "ptr", &si)
+        return
 
-      VarSetCapacity(rect, 16)
-      DllCall("GetClientRect", "ptr", hwnd, "ptr", &rect)
+    VarSetCapacity(rect, 16)
+    DllCall("GetClientRect", "ptr", hwnd, "ptr", &rect)
 
-      new_pos := NumGet(si, 20, "int") ; nPos
+    new_pos := NumGet(si, 20, "int") ; nPos
 
-      action := wParam & 0xFFFF
-      if action = 0 ; SB_LINEUP
-          new_pos -= SCROLL_STEP
-      else if action = 1 ; SB_LINEDOWN
-          new_pos += SCROLL_STEP
-      else if action = 2 ; SB_PAGEUP
-          new_pos -= NumGet(rect, 12, "int") - SCROLL_STEP
-      else if action = 3 ; SB_PAGEDOWN
-          new_pos += NumGet(rect, 12, "int") - SCROLL_STEP
-      else if (action = 5 || action = 4) ; SB_THUMBTRACK || SB_THUMBPOSITION
-          new_pos := wParam>>16
-      else if action = 6 ; SB_TOP
-          new_pos := NumGet(si, 8, "int") ; nMin
-      else if action = 7 ; SB_BOTTOM
-          new_pos := NumGet(si, 12, "int") ; nMax
-      else
-          return
+    action := wParam & 0xFFFF
+    if action = 0 ; SB_LINEUP
+        new_pos -= SCROLL_STEP
+    else if action = 1 ; SB_LINEDOWN
+        new_pos += SCROLL_STEP
+    else if action = 2 ; SB_PAGEUP
+        new_pos -= NumGet(rect, 12, "int") - SCROLL_STEP
+    else if action = 3 ; SB_PAGEDOWN
+        new_pos += NumGet(rect, 12, "int") - SCROLL_STEP
+    else if (action = 5 || action = 4) ; SB_THUMBTRACK || SB_THUMBPOSITION
+        new_pos := wParam>>16
+    else if action = 6 ; SB_TOP
+        new_pos := NumGet(si, 8, "int") ; nMin
+    else if action = 7 ; SB_BOTTOM
+        new_pos := NumGet(si, 12, "int") ; nMax
+    else
+        return
 
-      min := NumGet(si, 8, "int") ; nMin
-      max := NumGet(si, 12, "int") - NumGet(si, 16, "uint") ; nMax-nPage
-      new_pos := new_pos > max ? max : new_pos
-      new_pos := new_pos < min ? min : new_pos
+    min := NumGet(si, 8, "int") ; nMin
+    max := NumGet(si, 12, "int") - NumGet(si, 16, "uint") ; nMax-nPage
+    new_pos := new_pos > max ? max : new_pos
+    new_pos := new_pos < min ? min : new_pos
 
-      old_pos := NumGet(si, 20, "int") ; nPos
+    old_pos := NumGet(si, 20, "int") ; nPos
 
-      x := y := 0
-      if bar = 0 ; SB_HORZ
-          x := old_pos-new_pos
-      else
-          y := old_pos-new_pos
-      ; Scroll contents of window and invalidate uncovered area.
-      DllCall("ScrollWindow", "ptr", hwnd, "int", x, "int", y, "ptr", 0, "ptr", 0)
+    x := y := 0
+    if bar = 0 ; SB_HORZ
+        x := old_pos-new_pos
+    else
+        y := old_pos-new_pos
+    ; Scroll contents of window and invalidate uncovered area.
+    DllCall("ScrollWindow", "ptr", hwnd, "int", x, "int", y, "ptr", 0, "ptr", 0)
 
-      ; Update scroll bar.
-      NumPut(new_pos, si, 20, "int") ; nPos
-      DllCall("SetScrollInfo", "ptr", hwnd, "int", bar, "ptr", &si, "int", 1)
+    ; Update scroll bar.
+    NumPut(new_pos, si, 20, "int") ; nPos
+    DllCall("SetScrollInfo", "ptr", hwnd, "int", bar, "ptr", &si, "int", 1)
   }
