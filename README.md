@@ -3,7 +3,11 @@
 
 This tool makes it a snap to install new mods and manage existing ones. It also makes it easy to quickly enable/disable various tweaks.
 No need to fumble around with the Fallout76Custom.ini file anymore, this takes care of it all for you, and even creates one for you if you haven't made one yet already.
-The mod manager will automatically detect what kind of mod you've enabled (by scanning its contents), and assign it to the correct load order. (sResourceStartUpArchiveList, sResourceIndexFileList, sResourceArchive2List)
+The mod manager will automatically detect what kind of mod you've enabled (by scanning its contents), and assign it to the correct load order.
+It works on this logic:
+Mod contains a "model, texture, sfx" file > sResourceIndexFileList
+Mod contains a "interface,strings,music" file > sResourceStartUpArchiveList
+Anything else > sResourceArchive2List
 
 Features:
 - Quickly enable/disable mods.
