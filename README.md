@@ -6,7 +6,6 @@ No need to fumble around with the Fallout76Custom.ini file anymore, this takes c
 The mod manager will automatically detect what kind of mod you've enabled (by scanning its contents), and assign it to the correct load order.
 
 It works on this logic:<br />
-Mod contains a "model, texture, sfx" file > sResourceIndexFileList<br />
 Mod contains a "interface,strings,music" file > sResourceStartUpArchiveList<br />
 Anything else > sResourceArchive2List
 

@@ -11,7 +11,7 @@
   #NoEnv
   #SingleInstance Force
   #NoTrayIcon
-  VersionNumber = 1.12
+  VersionNumber = 1.13
 
 ;Handle scrolling the UI
   OnMessage(0x115, "OnScroll") ; WM_VSCROLL
@@ -63,7 +63,7 @@
 ;;;;;;;;;;;;;
 CreateGUI:
   DesiredGUIHeight = 220 ;Default height if zero mods are found. Height is added later on on a per mod found basis.
-  Gui, Add, Picture, x320 y250 H200 W150, %A_Temp%\FO76ModMan.temp\Fallout76ModManagerGuy.png
+  Gui, Add, Picture, x320 y300 H200 W150, %A_Temp%\FO76ModMan.temp\Fallout76ModManagerGuy.png
   Gui, Add, Text, x22 y15 w70 h20 , Mods Folder:
   Gui, Add, Edit, x92 y9 w361 h20 vModsFolder,%ModsFolder%
   Gui, Add, Button, x455 y9 w30 h20 gSelectModFolderButton, .. ;Define mods folder button
@@ -91,10 +91,11 @@ CreateGUI:
     TotalNumberOfMods := CurrentModNumber ;Used by the save button to determine loop count when saving each mod.
 
   ;We should find which settings need to be pre-filled on the GUI, so the user can load their settings.
-    IntroCheckbox := DefaultCheckedStatus(Fallout76CustomIni,"General","sIntroSequence") ;These need to be either blank or "Checked" in AHK Language so the GUI can create them accordingly.
-    DOFCheckbox := DefaultCheckedStatus(Fallout76CustomIni,"ImageSpace","bDynamicDepthOfField")
-    MotionBlurCheckbox := DefaultCheckedStatus(Fallout76CustomIni,"ImageSpace","bMBEnable")
-    VSyncCheckbox := DefaultCheckedStatus(Fallout76PrefsIni,"Display","iPresentInterval")
+    IntroCheckbox := DefaultCheckedStatus(Fallout76CustomIni,"General","sIntroSequence",1) ;These need to be either blank or "Checked" in AHK Language so the GUI can create them accordingly.
+    DOFCheckbox := DefaultCheckedStatus(Fallout76CustomIni,"ImageSpace","bDynamicDepthOfField",1)
+    MotionBlurCheckbox := DefaultCheckedStatus(Fallout76CustomIni,"ImageSpace","bMBEnable",1)
+    VSyncCheckbox := DefaultCheckedStatus(Fallout76PrefsIni,"Display","iPresentInterval",1)
+    MouseSensitivityTweakCheckbox := DefaultCheckedStatus(Fallout76CustomIni,"Controls","fMouseHeadingYScale",0)
 
     Gui, Add, Text, w1 h1 x340 y75,
     Gui, Add, Text, w80 h20, Misc goodies:
@@ -102,6 +103,7 @@ CreateGUI:
     Gui, Add, CheckBox, w150 h15 vMotionBlurStatus %MotionblurCheckbox%, Motion blur effects
     Gui, Add, CheckBox, w150 h15 vDOFStatus %DOFCheckbox%, Depth of field effects
     Gui, Add, CheckBox, w150 h15 vVsyncStatus %VSyncCheckbox%, Capped FPS (Vsync)
+    Gui, Add, CheckBox, w150 h15 vMouseSensitivityTweakStatus %MouseSensitivityTweakCheckbox%, Fix mouse Y sensitivity
     Gui, Add, Button,gSaveButton, Save Settings
     Gui, Add, Button,gRescanButton, Re-scan for new mods
 
@@ -245,6 +247,16 @@ SaveButton:
       EditPrefsIni(1,"iPresentInterval","Display")
     else
       EditPrefsIni(0,"iPresentInterval","Display")
+    if MouseSensitivityTweakStatus = 1
+    {
+      EditCustomIni(0.021,"fMouseHeadingXScale","Controls")
+      EditCustomIni(GetMouseYRatio(),"fMouseHeadingYScale","Controls")
+    }
+    else
+    {
+      DeleteFromCustomIni("fMouseHeadingXScale","Controls")
+      DeleteFromCustomIni("fMouseHeadingYScale","Controls")
+    }
 
   ;FO76 Needs a list of mods in a comma delimited fasion, and mods in different load orders. With the default files first (or the in-game store doesn't load)
     ShowTooltip("Detecting best load order",30000)
@@ -342,12 +354,24 @@ IniFileHelpButton:
         fileread,ListOfFiles,%A_Temp%\FO76ModMan.temp\%TheMod%.txt
 
     ;Determine the correct folder. Certain types of mods need to be in specific load orders, because FO76 just works in funky ways.
-      if InStr(ListOfFiles,"model") or InStr(ListOfFiles,"texture") or InStr(ListOfFiles,"sfx")
-        return "sResourceIndexFileList"
-      else if InStr(ListOfFiles,"interface") or InStr(ListOfFiles,"strings") or InStr(ListOfFiles,"music")
-       return "sResourceStartUpArchiveList"
-      else
-        return "sResourceArchive2List"
+      ;Commented out because Bag and BagGlow weren't working when in sResourceIndexFileList. I checked Nexusmods and I can't seem to see any mods that even need to be in this list?
+        ;  if InStr(ListOfFiles,"model") or InStr(ListOfFiles,"texture") or InStr(ListOfFiles,"sfx")
+        ;    return "sResourceIndexFileList"
+        ;  else if InStr(ListOfFiles,"interface") or InStr(ListOfFiles,"strings") or InStr(ListOfFiles,"music")
+        ;if InStr(ListOfFiles,"interface") or InStr(ListOfFiles,"strings") or InStr(ListOfFiles,"music")
+          ;return "sResourceStartUpArchiveList"
+      Loop, read, %A_Temp%\FO76ModMan.temp\%TheMod%.txt, %A_Temp%\FO76ModMan.temp\%TheMod%.txt
+      {
+        if (A_LoopReadLine) ;If this line isn't blank
+        {
+          RootFolder := StrReplace(A_LoopReadLine,"\","/") ;bsab sometimes makes paths with slashes the wrong way around. They need to be the right way around so strsplit works.
+          RootFolder := StrSplit(RootFolder,"/")
+          if (RootFolder[1] = "interface" or RootFolder[1] = "strings" or RootFolder[1] = "music")
+           return "sResourceStartUpArchiveList"
+        }
+        else
+          return "sResourceArchive2List"
+      }
   }
 
 
@@ -430,12 +454,21 @@ IniFileHelpButton:
     return
   }
 
-  DefaultCheckedStatus(IniFile,Section,Key)
+  DefaultCheckedStatus(IniFile,Section,Key,DefaultState)
   {
     Iniread,Query,%IniFile%,%Section%,%Key%
-    if (Query = 1 or Query = "ERROR")
-      return "Checked" ;Needs to be literal string for AHK Language to be either blank or checked.
-    else return
+    if DefaultState = 1
+    {
+      if (Query = 1 or Query = "ERROR")
+        return "Checked" ;Needs to be literal string for AHK Language to be either blank or checked.
+      else return
+    }
+    else
+    {
+      if (Query = 0 or Query = "ERROR")
+        return
+      else return "Checked"
+    }
   }
 
 ;Utility
@@ -463,6 +496,21 @@ IniFileHelpButton:
         if(v==needle)
             return true
     return false
+  }
+
+  GetMouseYRatio()
+  {
+    AspectRatio := Round(A_ScreenWidth / A_ScreenHeight,2)
+    If AspectRatio = 1.78 ;16:9
+      return 0.03738
+    else if AspectRatio = 1.33 ;4:3
+      return 0.028
+    else if AspectRatio = 1.60 ;16:10
+      return 0.0336
+    else if AspectRatio = 2.37 ;21:9
+      return 0.042
+    else
+      return Round(AspectRatio / 4.761904761904762,5) ;User is using some crazy resolution, try guessing the correct value. (Correct values are on PCGW. Eg: 1920x1080 / X = 0.3738. Find X by dividing the divisor by quotient)"
   }
 
 ;Scroll GUI
