@@ -11,7 +11,7 @@
   #NoEnv
   #SingleInstance Force
   #NoTrayIcon
-  VersionNumber = 1.13
+  VersionNumber = 1.132
 
 ;Handle scrolling the UI
   OnMessage(0x115, "OnScroll") ; WM_VSCROLL
@@ -82,10 +82,11 @@ CreateGUI:
         continue
       CurrentModNumber ++
       ModName%CurrentModNumber% := A_LoopFileName ;Add this mod and its value to the mod array. Eg Mod2 = glow.ba2
+      UIFriendlyName := StrSplit(A_LoopFileName,".ba2")
       if ModAlreadyEnabled(A_LoopFileName) ;Default the checkboxes to on/off depending on if they're already enabled in the ini file.
-        Gui, Add, CheckBox, w250 h15 vModStatus%CurrentModNumber% Checked, %A_LoopFileName%
+        Gui, Add, CheckBox, w250 h15 vModStatus%CurrentModNumber% Checked, % UIFriendlyName[1]
       else
-        Gui, Add, CheckBox, w250 h15 vModStatus%CurrentModNumber%, %A_LoopFileName%
+        Gui, Add, CheckBox, w250 h15 vModStatus%CurrentModNumber%, % UIFriendlyName[1]
       DesiredGUIHeight := DesiredGUIHeight + 17 ;Expand the GUI to fit the current mod in it.
     }
     TotalNumberOfMods := CurrentModNumber ;Used by the save button to determine loop count when saving each mod.
@@ -264,7 +265,6 @@ SaveButton:
     sResourceArchive2List := "SeventySix - ATX_Main.ba2, SeventySix - ATX_Textures.ba2"
     sResourceStartUpArchiveList := "SeventySix - Interface.ba2, SeventySix - Localization.ba2, SeventySix - Shaders.ba2, SeventySix - Startup.ba2"
     sResourceIndexFileList := "SeventySix - Textures01.ba2, SeventySix - Textures02.ba2, SeventySix - Textures03.ba2, SeventySix - Textures04.ba2, SeventySix - Textures05.ba2, SeventySix - Textures06.ba2"
-
     loop %TotalNumberOfMods%
     {
       if ModStatus%A_Index% = 1
@@ -366,7 +366,8 @@ IniFileHelpButton:
         {
           RootFolder := StrReplace(A_LoopReadLine,"\","/") ;bsab sometimes makes paths with slashes the wrong way around. They need to be the right way around so strsplit works.
           RootFolder := StrSplit(RootFolder,"/")
-          if (RootFolder[1] = "interface" or RootFolder[1] = "strings" or RootFolder[1] = "music")
+          ;if (RootFolder[1] = "interface" or RootFolder[1] = "strings" or RootFolder[1] = "music")
+          if (RootFolder[1] = "strings")
            return "sResourceStartUpArchiveList"
         }
         else
@@ -431,6 +432,9 @@ IniFileHelpButton:
   {
     global Fallout76CustomIni
     IniDelete,%Fallout76CustomIni%,%Section%,%Name%
+    IniRead,SectionContents,%Fallout76CustomIni%,%Section%
+    if SectionContents =
+      IniDelete,%Fallout76CustomIni%,%Section%
     return
   }
 
