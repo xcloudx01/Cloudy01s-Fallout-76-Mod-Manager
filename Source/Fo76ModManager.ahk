@@ -11,7 +11,11 @@
   #NoEnv
   #SingleInstance Force
   #NoTrayIcon
-  VersionNumber = 1.132
+  VersionNumber = 1.14
+
+;Includes
+  #include InstallMods.ahk
+  #Include IniHandling.ahk
 
 ;Handle scrolling the UI
   OnMessage(0x115, "OnScroll") ; WM_VSCROLL
@@ -96,7 +100,10 @@ CreateGUI:
     DOFCheckbox := DefaultCheckedStatus(Fallout76CustomIni,"ImageSpace","bDynamicDepthOfField",1)
     MotionBlurCheckbox := DefaultCheckedStatus(Fallout76CustomIni,"ImageSpace","bMBEnable",1)
     VSyncCheckbox := DefaultCheckedStatus(Fallout76PrefsIni,"Display","iPresentInterval",1)
+    GrassCheckbox := DefaultCheckedStatus(Fallout76PrefsIni,"Grass","bAllowCreateGrass",1)
     MouseSensitivityTweakCheckbox := DefaultCheckedStatus(Fallout76CustomIni,"Controls","fMouseHeadingYScale",0)
+    MouseAccelCheckbox := DefaultCheckedStatus(Fallout76CustomIni,"Controls","bMouseAcceleration",1)
+
 
     Gui, Add, Text, w1 h1 x340 y75,
     Gui, Add, Text, w80 h20, Misc goodies:
@@ -104,9 +111,13 @@ CreateGUI:
     Gui, Add, CheckBox, w150 h15 vMotionBlurStatus %MotionblurCheckbox%, Motion blur effects
     Gui, Add, CheckBox, w150 h15 vDOFStatus %DOFCheckbox%, Depth of field effects
     Gui, Add, CheckBox, w150 h15 vVsyncStatus %VSyncCheckbox%, Capped FPS (Vsync)
+    Gui, Add, CheckBox, w150 h15 vGrassStatus %GrassCheckbox%, Grass
+    Gui, Add, Text, y230 x340 w80 h20, Controls:
     Gui, Add, CheckBox, w150 h15 vMouseSensitivityTweakStatus %MouseSensitivityTweakCheckbox%, Fix mouse Y sensitivity
+    Gui, Add, CheckBox, w150 h15 vMouseAccelStatus %MouseAccelCheckbox%, Mouse Acceleration
     Gui, Add, Button,gSaveButton, Save Settings
     Gui, Add, Button,gRescanButton, Re-scan for new mods
+    Gui, Add, Button,gInstallModButton, Install a mod
 
   ;Error handling
     if CurrentModNumber = 0
@@ -116,25 +127,6 @@ CreateGUI:
       else
         msgbox,,Error!,No mods were found! Did you pick the correct folder that holds the .ba2 files?`n%ModFolderHelp%
     }
-    ;Check if any mods have been deleted since they were last enabled.
-    ;  if sResourceArchive2List != ERROR ;If Fallout76Custom exists and contains mods, then we should do a test to see if they're still there.
-    ;  {
-    ;    sResourceArchive2ListArray := StrSplit(sResourceArchive2List,",")
-    ;    loop % sResourceArchive2ListArray.Length() ;Check all previously enabled mods
-    ;    {
-    ;      CurrentModBeingChecked := sResourceArchive2ListArray[A_Index]
-    ;      ifinstring,CurrentModBeingChecked,SeventySix
-    ;        continue ;ignore default mods.
-    ;      SearchDir := ModsFolder . "\" . CurrentModBeingChecked
-    ;      ifnotexist,%SearchDir%
-    ;      {
-    ;        msgbox,,Notice,% "The mod: " . CurrentModBeingChecked " was previously enabled, but is now missing from the mod folder.`n`nIt has automatically been disabled."
-    ;        ;Remove the offending deleted mod from the ini list immediately so it isn't attempted to be loaded by the game.
-    ;          sResourceArchive2List := RemoveModFromList(CurrentModBeingChecked,sResourceArchive2List)
-    ;          EditCustomIni(sResourceArchive2List,"sResourceArchive2List","Archive")
-    ;      }
-    ;    }
-    ;  }
 
   ;Cap the height from going too tall and off the monitor. Capped it at 75%
     if (DesiredGUIHeight / A_ScreenHeight * 100) >= 75
@@ -248,6 +240,18 @@ SaveButton:
       EditPrefsIni(1,"iPresentInterval","Display")
     else
       EditPrefsIni(0,"iPresentInterval","Display")
+    if GrassStatus = 0
+    {
+      EditCustomIni(0,"bAllowCreateGrass","Grass")
+      EditCustomIni(1,"iMinGrassSize","Grass")
+    }
+    else
+    {
+      DeleteFromCustomIni("bAllowCreateGrass","Grass")
+      DeleteFromCustomIni("iMinGrassSize","Grass")
+    }
+
+  ;Mouse
     if MouseSensitivityTweakStatus = 1
     {
       EditCustomIni(0.021,"fMouseHeadingXScale","Controls")
@@ -258,6 +262,12 @@ SaveButton:
       DeleteFromCustomIni("fMouseHeadingXScale","Controls")
       DeleteFromCustomIni("fMouseHeadingYScale","Controls")
     }
+    if MouseAccelStatus = 0
+    {
+      EditCustomIni(0,"bMouseAcceleration","Controls")
+    }
+    else
+      DeleteFromCustomIni("bMouseAcceleration","Controls")
 
   ;FO76 Needs a list of mods in a comma delimited fasion, and mods in different load orders. With the default files first (or the in-game store doesn't load)
     ShowTooltip("Detecting best load order",30000)
@@ -269,9 +279,9 @@ SaveButton:
     {
       if ModStatus%A_Index% = 1
       {
-        if GetModsCorrectLocation(ModName%A_Index%) = "sResourceStartUpArchiveList"
+        if GetModsGoalResourceList(ModName%A_Index%) = "sResourceStartUpArchiveList"
           sResourceStartUpArchiveList := sResourceStartUpArchiveList . "," . ModName%A_Index%
-        else if GetModsCorrectLocation(ModName%A_Index%) = "sResourceIndexFileList"
+        else if GetModsGoalResourceList(ModName%A_Index%) = "sResourceIndexFileList"
           sResourceIndexFileList := sResourceIndexFileList . "," . ModName%A_Index%
         else
           sResourceArchive2List := sResourceArchive2List "," . ModName%A_Index%
@@ -319,6 +329,15 @@ IniFileHelpButton:
   Msgbox,,Help,This is where your Fallout76Custom.ini is stored. Typically in your documents folder\My Games\Fallout 76`n`nEg: C:\Users\USERNAME\Documents\My Games\Fallout 76`n`nIf you don't have a Fallout76Custom.ini file, then copy Fallout76.ini and rename it to Fallout76Custom.ini, and then use Notepad to make the file empty.
   return
 
+InstallModButton:
+fileselectfile,SelectedFileToInstall,1,,Please select a .ba2 mod file`, or a zip file containing one.,Mods (*.ba2;*.zip;*.7z;*.rar)
+if (SelectedFileToInstall)
+{
+  if InstallMod(SelectedFileToInstall) ;GUI needs to be updated to show the new mod if it was installed successfully.
+    gosub,ReScanButton
+}
+return
+
 
 
 
@@ -334,7 +353,7 @@ IniFileHelpButton:
 ;;;;;;;;;;;;;;;;;;;;;
 
 ;Mod Management
-  GetModsCorrectLocation(TheMod)
+  GetModsGoalResourceList(TheMod)
   {
     global ModsFolder
 
@@ -427,61 +446,7 @@ IniFileHelpButton:
     return ArrayContainsValue(EnabledModsArray,Query)
   }
 
-;Ini Files
-  DeleteFromCustomIni(Name,Section)
-  {
-    global Fallout76CustomIni
-    IniDelete,%Fallout76CustomIni%,%Section%,%Name%
-    IniRead,SectionContents,%Fallout76CustomIni%,%Section%
-    if SectionContents =
-      IniDelete,%Fallout76CustomIni%,%Section%
-    return
-  }
-
-  EditCustomIni(Value,Name,Section)
-  {
-    global Fallout76CustomIni
-    IniWrite,%Value%,%Fallout76CustomIni%,%Section%,%Name%
-    return
-  }
-
-  EditModManagerIni(Value,Name,Section)
-  {
-   IniWrite,%Value%,ModManagerPrefs.ini,%Section%,%Name%
-   return
-  }
-
-  EditPrefsIni(Value,Name,Section)
-  {
-    global Fallout76PrefsIni
-    IniWrite,%Value%,%Fallout76PrefsIni%,%Section%,%Name%
-    return
-  }
-
-  DefaultCheckedStatus(IniFile,Section,Key,DefaultState)
-  {
-    Iniread,Query,%IniFile%,%Section%,%Key%
-    if DefaultState = 1
-    {
-      if (Query = 1 or Query = "ERROR")
-        return "Checked" ;Needs to be literal string for AHK Language to be either blank or checked.
-      else return
-    }
-    else
-    {
-      if (Query = 0 or Query = "ERROR")
-        return
-      else return "Checked"
-    }
-  }
-
 ;Utility
-  RemoveModFromList(Needle,Haystack) ;Just to be safe, removes both the one containing a comma and without. So that it's definitely gone.
-  {
-    stringreplace,Haystack,Haystack,%Needle%`,
-    stringreplace,Haystack,Haystack,%Needle%,
-    return Haystack
-  }
 
   ShowTooltip(Text,Duration)
   {
