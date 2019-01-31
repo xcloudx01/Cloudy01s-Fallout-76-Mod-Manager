@@ -245,12 +245,12 @@ SaveButton:
     if GrassStatus = 0
     {
       EditCustomIni(0,"bAllowCreateGrass","Grass")
-      EditCustomIni(1,"iMinGrassSize","Grass")
+      ;EditCustomIni(1,"iMinGrassSize","Grass") ; - BorderXer said this isn't needed?
     }
     else
     {
       DeleteFromCustomIni("bAllowCreateGrass","Grass")
-      DeleteFromCustomIni("iMinGrassSize","Grass")
+      ;DeleteFromCustomIni("iMinGrassSize","Grass")
     }
 
   ;Mouse
@@ -418,7 +418,9 @@ HoverOverElementHelp(wParam, lParam, Msg)
   ;	Help := "Install a new mod into the game. Supports .ba2 mods, zipped mods, zipped loose-file mods"
   ;else IfEqual, OutputVarControl, Button6
   ;	Help := "Save the enabled mods and any tweaks to your fallout65custom.ini file.`nAfter the file has been saved, you can exit the mod manager and play Fallout 76."
-  IfEqual, OutputVarControl, Button7
+  IfEqual, OutputVarControl, Button6
+    Help := "Mods are currently set to load in alphabetical/numerical order.`nIf this causes issues, rename the mod you want to have higher priority to have a 1 infront of it.`n`nEg: PerkLoadoutManager > 1PerkLoadoutManager`n`nThis will be made automatic in a future update, but for now this is a work-around."
+  else IfEqual, OutputVarControl, Button7
   	Help := "Unchecking this will make the game start up instantly, without having to watch the Bethesda logo movie."
   else IfEqual, OutputVarControl, Button8
   	Help := "Unchecking this will disable any motion blur.`n`n(May improve FPS)"
