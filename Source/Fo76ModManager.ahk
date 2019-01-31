@@ -11,7 +11,7 @@
   #NoEnv
   #SingleInstance Force
   #NoTrayIcon
-  VersionNumber = 1.14
+  VersionNumber = 1.141
   AppName = Cloudy01's Fallout 76 Mod Manager Ver %VersionNumber%
 
 ;Includes

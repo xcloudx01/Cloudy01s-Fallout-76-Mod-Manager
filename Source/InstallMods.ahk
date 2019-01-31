@@ -48,9 +48,15 @@ InstallMod(ModFileFullPath)
       UnzipFile(ModFileFullPath,TempUnzippingFolder,1)
       loop,files,%TempUnzippingFolder%\*.ba2
         TotalBa2InZip ++
-        if TotalBa2InZip = 1
-          return % Installba2(A_LoopFileFullPath)
-        else
+      if TotalBa2InZip = 1
+      {
+        loop,files,%TempUnzippingFolder%\*.ba2
+        {
+          if A_Index = 1
+            return % Installba2(A_LoopFileFullPath)
+        }
+      }
+      else
         {
           loop,files,%TempUnzippingFolder%\*.ba2
           Installba2(A_LoopFileFullPath)
