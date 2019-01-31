@@ -11,7 +11,7 @@
   #NoEnv
   #SingleInstance Force
   #NoTrayIcon
-  VersionNumber = 1.142
+  VersionNumber = 1.143
   AppName = Cloudy01's Fallout 76 Mod Manager Ver %VersionNumber%
 
 ;Includes
@@ -68,7 +68,15 @@
 ;;;;;;;;;;;;;
 CreateGUI:
   DesiredGUIHeight = 205 ;Default height if zero mods are found. Height is added later on on a per mod found basis.
-  ;Gui, Add, Picture, x320 y300 H200 W150, %A_Temp%\FO76ModMan.temp\Fallout76ModManagerGuy.png
+  ;We should find which settings need to be pre-filled on the GUI, so the user can load their settings.
+    IntroCheckbox := DefaultCheckedStatus(Fallout76CustomIni,"General","sIntroSequence",1) ;These need to be either blank or "Checked" in AHK Language so the GUI can create them accordingly.
+    DOFCheckbox := DefaultCheckedStatus(Fallout76CustomIni,"ImageSpace","bDynamicDepthOfField",1)
+    MotionBlurCheckbox := DefaultCheckedStatus(Fallout76CustomIni,"ImageSpace","bMBEnable",1)
+    VSyncCheckbox := DefaultCheckedStatus(Fallout76PrefsIni,"Display","iPresentInterval",1)
+    GrassCheckbox := DefaultCheckedStatus(Fallout76CustomIni,"Grass","bAllowCreateGrass",1)
+    MouseSensitivityTweakCheckbox := DefaultCheckedStatus(Fallout76CustomIni,"Controls","fMouseHeadingYScale",0)
+    MouseAccelCheckbox := DefaultCheckedStatus(Fallout76CustomIni,"Controls","bMouseAcceleration",1)
+
   Gui, Add, Text, x22 y15 w70 h20 , Mods Folder:
   Gui, Add, Edit, x92 y9 w361 h20 vModsFolder,%ModsFolder%
   Gui, Add, Button, x455 y9 w30 h20 gSelectModFolderButton, .. ;Define mods folder button
@@ -115,15 +123,6 @@ CreateGUI:
       DesiredGUIHeight := DesiredGUIHeight + 17 ;Expand the GUI to fit the current mod in it.
     }
     TotalNumberOfMods := CurrentModNumber ;Used by the save button to determine loop count when saving each mod.
-
-  ;We should find which settings need to be pre-filled on the GUI, so the user can load their settings.
-    IntroCheckbox := DefaultCheckedStatus(Fallout76CustomIni,"General","sIntroSequence",1) ;These need to be either blank or "Checked" in AHK Language so the GUI can create them accordingly.
-    DOFCheckbox := DefaultCheckedStatus(Fallout76CustomIni,"ImageSpace","bDynamicDepthOfField",1)
-    MotionBlurCheckbox := DefaultCheckedStatus(Fallout76CustomIni,"ImageSpace","bMBEnable",1)
-    VSyncCheckbox := DefaultCheckedStatus(Fallout76PrefsIni,"Display","iPresentInterval",1)
-    GrassCheckbox := DefaultCheckedStatus(Fallout76PrefsIni,"Grass","bAllowCreateGrass",1)
-    MouseSensitivityTweakCheckbox := DefaultCheckedStatus(Fallout76CustomIni,"Controls","fMouseHeadingYScale",0)
-    MouseAccelCheckbox := DefaultCheckedStatus(Fallout76CustomIni,"Controls","bMouseAcceleration",1)
 
   ;Error handling
     if CurrentModNumber = 0
