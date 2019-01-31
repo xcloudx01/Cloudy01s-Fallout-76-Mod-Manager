@@ -11,7 +11,7 @@
   #NoEnv
   #SingleInstance Force
   #NoTrayIcon
-  VersionNumber = 1.141
+  VersionNumber = 1.142
   AppName = Cloudy01's Fallout 76 Mod Manager Ver %VersionNumber%
 
 ;Includes
@@ -332,7 +332,7 @@ IniFileHelpButton:
   return
 
 InstallModButton:
-FileSelectFile,SelectedFilesToInstall,M3,Please select a .ba2 mod file`, or a zip file containing one.,Mods (*.ba2;*.zip;*.7z;*.rar)
+FileSelectFile,SelectedFilesToInstall,M3,,Please select a .ba2 mod file`,or a zipped mod containing either a .ba2 file or a loose-files mod.,Mods (*.ba2;*.zip;*.7z;*.rar)
 if (SelectedFilesToInstall)
 {
   SelectedModsArray := strsplit(SelectedFilesToInstall,"`n")
@@ -342,7 +342,8 @@ if (SelectedFilesToInstall)
   else
   {
     FileToInstall := SelectedModsArray[1] . "\" . SelectedModsArray[A_Index]
-    if InstallMod(FileToInstall) ;A mod succeeded so the GUI needs to be updated to reflect the change.
+    NewlyInstalledMod := InstallMod(FileToInstall)
+    if (NewlyInstalledMod) ;A mod succeeded so the GUI needs to be updated to reflect the change.
       ShouldUpdateGUI = 1
   }
   if ShouldUpdateGUI ;GUI needs to be updated to show the new mod if it was installed successfully.
