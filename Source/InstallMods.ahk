@@ -1,18 +1,44 @@
 InstallMod(ModFileFullPath)
 {
   TempUnzippingFolder := A_Temp . "\FO76ModMan.temp\UnzippedMods"
+  global ModsFolder
   if (SelectedFileSubtype(ModFileFullPath) = "zipped")
   {
     fileremovedir,%TempUnzippingFolder%,1 ;Dir needs to be empty so we can double-check anything actually got extracted.
     if !(ZipFileContainsMod(ModFileFullPath))
     {
-      msgbox,,Error!,The selected zip file does not contain any .ba2 files. Please make sure you've selected one that does.`n`nYou selected the file:`n`n%ModFileFullPath%
+      msgbox,,Error!,The selected zip file does not contain any .ba2 or mod files. Please make sure you've selected one that does.`n`nYou selected the file:`n`n%ModFileFullPath%
       return false
     }
-    UnzipFile(ModFileFullPath,TempUnzippingFolder,1)
-    loop,files,%TempUnzippingFolder%\*.ba2
-      Installba2(A_LoopFileFullPath)
-    fileremovedir,%TempUnzippingFolder%,1 ;May as well tidy up now that we're done with extracting.
+    else if (ZipFileContainsMod(ModFileFullPath) = "Loose")
+    {
+      UnzipFile(ModFileFullPath,TempUnzippingFolder,0)
+      msgbox,4,Mod Compiler,The zip file appears to be a loose-file mod. It must be compiled to .ba2 in order to be used.`nWould you like to attempt to compile it?
+      ifmsgbox yes
+      {
+        InputBox, ChosenModName, Mod Name, Please enter a name to call this mod., , 250, 150
+        if (ChosenModName)
+        {
+          ifexist,%ModsFolder%\%ChosenModName%.ba2
+          {
+            msgbox,4,Conflicting Mod,A mod called "%ChosenModName%" already exists. Did you want to overwrite it?
+            ifmsgbox yes
+              CompileMod(TempUnzippingFolder,ChosenModName)
+          }
+          else
+            CompileMod(TempUnzippingFolder,ChosenModName)
+        }
+      }
+      else
+        return false
+    }
+    else
+    {
+      UnzipFile(ModFileFullPath,TempUnzippingFolder,1)
+      loop,files,%TempUnzippingFolder%\*.ba2
+        Installba2(A_LoopFileFullPath)
+    }
+    ;fileremovedir,%TempUnzippingFolder%,1 ;May as well tidy up now that we're done with extracting.
   }
   else ;Don't need an if because the GUI can only pick from .ba2 and zip files.
     Installba2(ModFileFullPath)
@@ -43,10 +69,11 @@ SelectedFileSubtype(ModFileFullPath)
       else
         ExtractionType = x
       cmd := A_Temp . "\FO76ModMan.temp\7z.exe " . ExtractionType . " """ . ZipFileFullPath . """ -o""" . DestinationFullPath . """ -y"
-      run, %cmd%
+      ShowStatusText("Unzipping file..",6000)
+      runwait, %cmd%
       while,!FileExist(DestinationFullPath)
       {
-        ShowTooltip("Unzipping file..",500)
+        ShowStatusText("Double-checking zip extracted correctly..",500)
         sleep,500
         if A_Index >= 15
         msgbox,,Error!,Tried to unzip the following file:`n%ZipFileFullPath%`n`nTo:`n%DestinationFullPath%`n`nBut the extraction failed.`nTry un-zipping the file manually.
@@ -56,11 +83,19 @@ SelectedFileSubtype(ModFileFullPath)
 
   ZipFileContainsMod(FileFullPath)
   {
+    ValidModTypes := ["meshes","strings","music","sound","textures","materials","interface","geoexporter","programs","vis","scripts","misc","shadersfx"] ;So we can check to make sure the user selected the right folder. These are all the default root locations the SeventySix*.ba2 files use.
     cmd := "cmd.exe /q /c " . A_Temp . "\FO76ModMan.temp\7z.exe l """ . FileFullPath
     ListOfFiles := ComObjCreate("WScript.Shell").Exec(cmd).StdOut.ReadAll()
     if instr(ListOfFiles,.ba2)
       return true
     else
+    {
+      loop % ValidModTypes.Length()
+      {
+        if instr(ListOfFiles,ValidModTypes[A_Index])
+          return "Loose"
+      }
+    }
       return false
   }
 
@@ -74,7 +109,7 @@ SelectedFileSubtype(ModFileFullPath)
       if instr(ModName,".ba2")
       {
         filemove,%TheModFullPath%,%ModsFolder%\%ModName%,1
-        ShowTooltip("Successfully installed " . ModName . "!",3000)
+        ShowStatusText("Successfully installed " . ModName . "!",6000)
       }
       else
         msgbox,,Error!,Attempted to install a mod that is not a .ba2 file?`nThe mod that was specified to install was:`n%TheModFullPath%`n`nMake sure you've selected the right file and try again.
@@ -91,7 +126,7 @@ SelectedFileSubtype(ModFileFullPath)
 
 
 ;Loose file mods
-  CompileMod(LooseFilesFolder)
+  CompileMod(LooseFilesFolder,ModName)
   {
     global ModsFolder
     ;Error handling
@@ -132,6 +167,7 @@ SelectedFileSubtype(ModFileFullPath)
         }
       }
 
+
       if !(IsValidModDir)
       {
         loop,% ValidModTypes.Length()
@@ -142,6 +178,9 @@ SelectedFileSubtype(ModFileFullPath)
 
     ;Compile the mod and install it into the mod dir.
       filedelete, %ModCompilerDir%\ModFileList.txt
+        ifexist,%ModsFolder%\%ModName%.ba2
+          filerecycle,%ModsFolder%\%ModName%.ba2 ;Maybe it's an old version? recycle it instead of overwriting.
+      ShowStatusText("Compiling mod..",6000)
       Loop, Files, %LooseFilesFolder%\*,R ;Archive2 needs a `n delimited list of mod files to turn into a .ba2 file.
       {
         if (A_LoopFileExt = "txt" or A_LoopFileExt = "bat") ;We only need mod files in the .ba2, no need to include misc junk.
@@ -150,8 +189,16 @@ SelectedFileSubtype(ModFileFullPath)
           fileappend,%A_LoopFileFullPath%`n,%ModCompilerDir%\ModFileList.txt
 
       }
-      filedelete,C:\Users\Cloud\Desktop\data\Compile.bat
-      filedelete,C:\Users\Cloud\Desktop\data\test.ba2
-      fileappend,"%ModCompilerDir%\Archive2.exe" -s="%ModCompilerDir%\ModFileList.txt" -c="C:\Users\Cloud\Desktop\data\test.ba2",%ModCompilerDir%\Compile.bat
-      run,%ModCompilerDir%\Compile.bat
+      cmd := ModCompilerDir . "\Archive2.exe -s=""" . ModCompilerDir . "\ModFileList.txt"" -c=""" . ModsFolder . "\" . ModName . ".ba2"""
+      runwait,%cmd%
+      ifexist,%ModsFolder%\%ModName%.ba2
+      {
+        ShowStatusText(ModName . ".ba2 successfully compiled!",6000)
+        return true
+      }
+      else
+      {
+        msgbox,,Oh noes!,The mod failed to compile :(.`nYou may have to check with the mod author if they've released a .ba2 version. Or follow their instructions on how to get the loose file version to work.
+          return false
+      }
     }

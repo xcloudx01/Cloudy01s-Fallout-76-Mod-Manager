@@ -74,8 +74,27 @@ CreateGUI:
   Gui, Add, Button, x490 y9 w15 h20 gModFolderHelpButton, ? ;Mods help button
   Gui, Add, Text, x22 y37 w150 h20 , Fallout76Custom.ini:
   Gui, Add, Edit, x122 y30 w330 h20 vFallout76CustomIni,%Fallout76CustomIni%
+  gui,font,Bold
+  Gui, Add, Text, x22 y55 w400 h20 vStatusText
+  gui,font,
   Gui, Add, Button, x455 y30 w30 h20 gSelectIniFileButton, .. ;Define ini file button
   Gui, Add, Button, x490 y30 w15 h20 gIniFileHelpButton, ? ;Ini help button
+  Gui, Add, Text, w1 h1 x340 y75,
+  Gui, Add, Text, w80 h20, Misc goodies:
+  Gui, Add, CheckBox, w100 h15 vIntroVideosStatus %IntroCheckbox%, Intro videos
+  Gui, Add, CheckBox, w150 h15 vMotionBlurStatus %MotionblurCheckbox%, Motion blur effects
+  Gui, Add, CheckBox, w150 h15 vDOFStatus %DOFCheckbox%, Depth of field effects
+  Gui, Add, CheckBox, w150 h15 vVsyncStatus %VSyncCheckbox%, Capped FPS (Vsync)
+  Gui, Add, CheckBox, w150 h15 vGrassStatus %GrassCheckbox%, Grass
+  Gui, Add, Text, y230 x340 w80 h20, Controls:
+  Gui, Add, CheckBox, w150 h15 vMouseSensitivityTweakStatus %MouseSensitivityTweakCheckbox%, Fix mouse Y sensitivity
+  Gui, Add, CheckBox, w150 h15 vMouseAccelStatus %MouseAccelCheckbox%, Mouse Acceleration
+;  Gui, Add, Button,gRescanButton, Re-scan for new mods
+  Gui, Add, Button,gInstallModButton, Install a mod
+  Gui, Add, Button,gSaveButton, Save Settings
+; Gui, Add, Button,gPlayGameButton, Play Fallout 76! ;Starting the game via the mod manager just makes the game crash? :(
+  Gui, Add, Text, y380 x340 w120 h20, Developer Tools:
+  Gui, Add, Button,gCompileModButton, Compile a mod
   Gui, Add, Text, x22 y75 w150 h20, Mods:
 
   ;Look for mods and add them to the GUI
@@ -104,21 +123,6 @@ CreateGUI:
     MouseSensitivityTweakCheckbox := DefaultCheckedStatus(Fallout76CustomIni,"Controls","fMouseHeadingYScale",0)
     MouseAccelCheckbox := DefaultCheckedStatus(Fallout76CustomIni,"Controls","bMouseAcceleration",1)
 
-
-    Gui, Add, Text, w1 h1 x340 y75,
-    Gui, Add, Text, w80 h20, Misc goodies:
-    Gui, Add, CheckBox, w100 h15 vIntroVideosStatus %IntroCheckbox%, Intro videos
-    Gui, Add, CheckBox, w150 h15 vMotionBlurStatus %MotionblurCheckbox%, Motion blur effects
-    Gui, Add, CheckBox, w150 h15 vDOFStatus %DOFCheckbox%, Depth of field effects
-    Gui, Add, CheckBox, w150 h15 vVsyncStatus %VSyncCheckbox%, Capped FPS (Vsync)
-    Gui, Add, CheckBox, w150 h15 vGrassStatus %GrassCheckbox%, Grass
-    Gui, Add, Text, y230 x340 w80 h20, Controls:
-    Gui, Add, CheckBox, w150 h15 vMouseSensitivityTweakStatus %MouseSensitivityTweakCheckbox%, Fix mouse Y sensitivity
-    Gui, Add, CheckBox, w150 h15 vMouseAccelStatus %MouseAccelCheckbox%, Mouse Acceleration
-    Gui, Add, Button,gSaveButton, Save Settings
-    Gui, Add, Button,gRescanButton, Re-scan for new mods
-    Gui, Add, Button,gInstallModButton, Install a mod
-
   ;Error handling
     if CurrentModNumber = 0
     {
@@ -135,6 +139,7 @@ CreateGUI:
     Gui, Show, H%DesiredGUIHeight%,Cloudy01's Fallout 76 Mod Manager Ver %VersionNumber%
     Gui, +LastFound
     GroupAdd, MyGui, % "ahk_id " . WinExist()
+    OnMessage(0x200, "HoverOverElementHelp")
 return
 
 
@@ -166,9 +171,9 @@ LoadSettingsFile:
   }
 return
 
-RemoveToolTip: ;Used by the timer, so we don't have to sleep and bog down the main thread.
-SetTimer, RemoveToolTip, Off
-ToolTip
+RemoveStatusText: ;Used by the timer, so we don't have to sleep and bog down the main thread.
+  SetTimer, RemoveStatusText, Off
+  guicontrol,,StatusText,
 return
 
 GuiSize:
@@ -270,7 +275,7 @@ SaveButton:
       DeleteFromCustomIni("bMouseAcceleration","Controls")
 
   ;FO76 Needs a list of mods in a comma delimited fasion, and mods in different load orders. With the default files first (or the in-game store doesn't load)
-    ShowTooltip("Detecting best load order",30000)
+    ShowStatusText("Detecting best load order",30000)
     CurrentEnabledModNumber = 1
     sResourceArchive2List := "SeventySix - ATX_Main.ba2, SeventySix - ATX_Textures.ba2"
     sResourceStartUpArchiveList := "SeventySix - Interface.ba2, SeventySix - Localization.ba2, SeventySix - Shaders.ba2, SeventySix - Startup.ba2"
@@ -292,7 +297,7 @@ SaveButton:
     EditCustomIni(sResourceIndexFileList,"sResourceIndexFileList","Archive")
     EditCustomIni(sResourceArchive2List,"sResourceArchive2List","Archive")
 
-  ShowTooltip("Successfully saved",1000)
+  ShowStatusText("Successfully saved. You may now start Fallout 76.",3000)
   return
 
 SelectModFolderButton:
@@ -338,9 +343,42 @@ if (SelectedFileToInstall)
 }
 return
 
+CompileModButton:
+  msgbox,,Help Info,Please select the ROOT folder that contains all the mod's files and folders.
+  fileselectfolder,SelectedModToCompileFolder,1,,Please select the ROOT folder that contains all the mods files and folders.
+  if (SelectedModToCompileFolder)
+  {
+    InputBox, ChosenModName, Mod Name,Please enter a name to call this mod.`n`nYour mod will be saved to the following folder:`n%ModsFolder%, , 450, 200
+    if (ChosenModName)
+    {
+      ifexist,%ModsFolder%\%ChosenModName%.ba2
+      {
+        msgbox,4,Conflicting Mod,A mod called "%ChosenModName%" already exists. Did you want to overwrite it?
+        ifmsgbox yes
+          CompileMod(SelectedModToCompileFolder,ChosenModName) ;No need to re-create the GUI because there won't be anything new to add to it..
+      }
+      else
+      {
+        CompileMod(SelectedModToCompileFolder,ChosenModName)
+        gosub,ReScanButton
+      }
+    }
+  }
+return
 
-
-
+GetGameExePath()
+{
+  global ModsFolder
+  ModsFolderArray := strsplit(ModsFolder,"\")
+  loop % ModsFolderArray.Length() - 1
+  {
+    if A_Index = 1
+      GameExePath := ModsFolderArray[A_Index]
+    else
+      GameExePath := GameExePath . "\" . ModsFolderArray[A_Index]
+  }
+  return GameExePath . "\Fallout76.exe"
+}
 
 
 
@@ -351,6 +389,25 @@ return
 ;;;;;;;;;;;;;;;;;;;;;
 ;Functions
 ;;;;;;;;;;;;;;;;;;;;;
+
+HoverOverElementHelp(wParam, lParam, Msg) {
+MouseGetPos,,,, OutputVarControl
+IfEqual, OutputVarControl, Button5
+	Help := "Unchecking this will make the game start up instantly, without having to play the Bethesda logo movie."
+else IfEqual, OutputVarControl, Button6
+	Help := "Unchecking this will disable any motion blur.`n`n(May improve FPS)"
+else IfEqual, OutputVarControl, Button7
+	Help := "Unchecking this disables all depth of field effects.`n`n(Will improve FPS)"
+else IfEqual, OutputVarControl, Button8
+	Help := "Unchecking this allows the FPS to run as high as possible.`n(Improves FPS on powerful machines. Improves input lag)`n`n*Leave this checked if you experience screen tearing"
+else IfEqual, OutputVarControl, Button9
+  Help := "Unchecking this will remove the grass ingame.`n`n(Improves FPS, may improve visibility)"
+else IfEqual, OutputVarControl, Button10
+	Help := "The game reads up/down mouse movement at a different speed than left/right movement, which can throw off your aim.`nChecking this makes mouse movement consistent.`n`n*Your mouse movement may be increased too much whilst standing still, but works fine while you're moving."
+else IfEqual, OutputVarControl, Button11
+	Help := "The faster you move your mouse, the further your aim goes.`nPersonal preference if you like this on or off."
+tooltip % Help
+}
 
 ;Mod Management
   GetModsGoalResourceList(TheMod)
@@ -448,10 +505,10 @@ return
 
 ;Utility
 
-  ShowTooltip(Text,Duration)
+  ShowStatusText(Text,Duration)
   {
-    tooltip,%Text%
-    SetTimer, RemoveToolTip, %Duration%
+    SetTimer, RemoveStatusText, %Duration%
+    GuiControl,, StatusText, Status: %Text%
     return
   }
 
