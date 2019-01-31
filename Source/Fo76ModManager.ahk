@@ -4,7 +4,7 @@
 ;Temp files
   ifnotexist,%A_Temp%\FO76ModMan.temp
     filecreatedir,%A_Temp%\FO76ModMan.temp
-  FileInstall, FalloutGuy.png, %A_Temp%\FO76ModMan.temp\Fallout76ModManagerGuy.png,1
+  ;FileInstall, FalloutGuy.png, %A_Temp%\FO76ModMan.temp\Fallout76ModManagerGuy.png,1
   FileInstall, bsab.exe, %A_Temp%\FO76ModMan.temp\bsab.exe,1
 
 ;System vars
@@ -12,6 +12,7 @@
   #SingleInstance Force
   #NoTrayIcon
   VersionNumber = 1.14
+  AppName = Cloudy01's Fallout 76 Mod Manager Ver %VersionNumber%
 
 ;Includes
   #include InstallMods.ahk
@@ -66,8 +67,8 @@
 ;GUI
 ;;;;;;;;;;;;;
 CreateGUI:
-  DesiredGUIHeight = 220 ;Default height if zero mods are found. Height is added later on on a per mod found basis.
-  Gui, Add, Picture, x320 y300 H200 W150, %A_Temp%\FO76ModMan.temp\Fallout76ModManagerGuy.png
+  DesiredGUIHeight = 205 ;Default height if zero mods are found. Height is added later on on a per mod found basis.
+  ;Gui, Add, Picture, x320 y300 H200 W150, %A_Temp%\FO76ModMan.temp\Fallout76ModManagerGuy.png
   Gui, Add, Text, x22 y15 w70 h20 , Mods Folder:
   Gui, Add, Edit, x92 y9 w361 h20 vModsFolder,%ModsFolder%
   Gui, Add, Button, x455 y9 w30 h20 gSelectModFolderButton, .. ;Define mods folder button
@@ -80,18 +81,19 @@ CreateGUI:
   Gui, Add, Button, x455 y30 w30 h20 gSelectIniFileButton, .. ;Define ini file button
   Gui, Add, Button, x490 y30 w15 h20 gIniFileHelpButton, ? ;Ini help button
   Gui, Add, Text, w1 h1 x340 y75,
-  Gui, Add, Text, w80 h20, Misc goodies:
+  Gui, Add, Button,gInstallModButton, Install a mod
+  Gui, Add, Button,gSaveButton, Save Settings
+  Gui, Add, Text, w1 h1, ;vertical padding
+  Gui, Add, Text, w150 h20, Graphics Tweaks:
   Gui, Add, CheckBox, w100 h15 vIntroVideosStatus %IntroCheckbox%, Intro videos
   Gui, Add, CheckBox, w150 h15 vMotionBlurStatus %MotionblurCheckbox%, Motion blur effects
   Gui, Add, CheckBox, w150 h15 vDOFStatus %DOFCheckbox%, Depth of field effects
   Gui, Add, CheckBox, w150 h15 vVsyncStatus %VSyncCheckbox%, Capped FPS (Vsync)
   Gui, Add, CheckBox, w150 h15 vGrassStatus %GrassCheckbox%, Grass
-  Gui, Add, Text, y230 x340 w80 h20, Controls:
+  Gui, Add, Text, w1 h1, ;vertical padding
+  Gui, Add, Text, w150 h20, Control Tweaks:
   Gui, Add, CheckBox, w150 h15 vMouseSensitivityTweakStatus %MouseSensitivityTweakCheckbox%, Fix mouse Y sensitivity
   Gui, Add, CheckBox, w150 h15 vMouseAccelStatus %MouseAccelCheckbox%, Mouse Acceleration
-;  Gui, Add, Button,gRescanButton, Re-scan for new mods
-  Gui, Add, Button,gInstallModButton, Install a mod
-  Gui, Add, Button,gSaveButton, Save Settings
 ; Gui, Add, Button,gPlayGameButton, Play Fallout 76! ;Starting the game via the mod manager just makes the game crash? :(
   Gui, Add, Text, y380 x340 w120 h20, Developer Tools:
   Gui, Add, Button,gCompileModButton, Compile a mod
@@ -128,26 +130,21 @@ CreateGUI:
     {
       if (AutoDetectedModsFolder)
         msgbox,,Oh noes!,The mods folder was auto-detected, but didn't seem to contain any mods.`nPlease make sure the mods folder is correct in the mod manager.
-      else
+      else if !(FileExist(ModsFolder . "\SeventySix - Textures01.ba2")) ;Need to check if the folder actually contains mods.
         msgbox,,Error!,No mods were found! Did you pick the correct folder that holds the .ba2 files?`n%ModFolderHelp%
     }
 
-  ;Cap the height from going too tall and off the monitor. Capped it at 75%
-    if (DesiredGUIHeight / A_ScreenHeight * 100) >= 75
+
+    if (DesiredGUIHeight / A_ScreenHeight * 100) >= 75 ;Cap the height from going too tall and off the monitor. Capped it at 75%
       DesiredGUIHeight := 0.5 * A_ScreenHeight
+    if  DesiredGUIHeight <= 440 ;User has little/no mods. So we should at least make the GUI a decent size to show all the buttons.
+      DesiredGUIHeight = 440
   ;Show the GUI
-    Gui, Show, H%DesiredGUIHeight%,Cloudy01's Fallout 76 Mod Manager Ver %VersionNumber%
+    Gui, Show, H%DesiredGUIHeight% W510,%AppName%
     Gui, +LastFound
     GroupAdd, MyGui, % "ahk_id " . WinExist()
     OnMessage(0x200, "HoverOverElementHelp")
 return
-
-
-
-
-
-
-
 
 
 
@@ -335,11 +332,24 @@ IniFileHelpButton:
   return
 
 InstallModButton:
-fileselectfile,SelectedFileToInstall,1,,Please select a .ba2 mod file`, or a zip file containing one.,Mods (*.ba2;*.zip;*.7z;*.rar)
-if (SelectedFileToInstall)
+FileSelectFile,SelectedFilesToInstall,M3,Please select a .ba2 mod file`, or a zip file containing one.,Mods (*.ba2;*.zip;*.7z;*.rar)
+if (SelectedFilesToInstall)
 {
-  if InstallMod(SelectedFileToInstall) ;GUI needs to be updated to show the new mod if it was installed successfully.
+  SelectedModsArray := strsplit(SelectedFilesToInstall,"`n")
+  loop % SelectedModsArray.length()
+  if A_Index = 1
+    continue
+  else
+  {
+    FileToInstall := SelectedModsArray[1] . "\" . SelectedModsArray[A_Index]
+    if InstallMod(FileToInstall) ;A mod succeeded so the GUI needs to be updated to reflect the change.
+      ShouldUpdateGUI = 1
+  }
+  if ShouldUpdateGUI ;GUI needs to be updated to show the new mod if it was installed successfully.
+  {
     gosub,ReScanButton
+    guicontrol,,StatusText,Successfully installed: %NewlyInstalledMod%
+  }
 }
 return
 
@@ -390,23 +400,40 @@ GetGameExePath()
 ;Functions
 ;;;;;;;;;;;;;;;;;;;;;
 
-HoverOverElementHelp(wParam, lParam, Msg) {
-MouseGetPos,,,, OutputVarControl
-IfEqual, OutputVarControl, Button5
-	Help := "Unchecking this will make the game start up instantly, without having to play the Bethesda logo movie."
-else IfEqual, OutputVarControl, Button6
-	Help := "Unchecking this will disable any motion blur.`n`n(May improve FPS)"
-else IfEqual, OutputVarControl, Button7
-	Help := "Unchecking this disables all depth of field effects.`n`n(Will improve FPS)"
-else IfEqual, OutputVarControl, Button8
-	Help := "Unchecking this allows the FPS to run as high as possible.`n(Improves FPS on powerful machines. Improves input lag)`n`n*Leave this checked if you experience screen tearing"
-else IfEqual, OutputVarControl, Button9
-  Help := "Unchecking this will remove the grass ingame.`n`n(Improves FPS, may improve visibility)"
-else IfEqual, OutputVarControl, Button10
-	Help := "The game reads up/down mouse movement at a different speed than left/right movement, which can throw off your aim.`nChecking this makes mouse movement consistent.`n`n*Your mouse movement may be increased too much whilst standing still, but works fine while you're moving."
-else IfEqual, OutputVarControl, Button11
-	Help := "The faster you move your mouse, the further your aim goes.`nPersonal preference if you like this on or off."
-tooltip % Help
+GuiDropFiles(GuiHwnd, FileArray, CtrlHwnd, X, Y)
+{
+  for i, file in FileArray
+    NewlyInstalledMod := InstallMod(file)
+  if NewlyInstalledMod ;GUI needs to be updated to show the new mod if it was installed successfully.
+  {
+    gosub,ReScanButton
+    guicontrol,,StatusText,Successfully installed: %NewlyInstalledMod%
+  }
+}
+
+HoverOverElementHelp(wParam, lParam, Msg)
+{
+  MouseGetPos,,,, OutputVarControl
+  ;IfEqual, OutputVarControl, Button5
+  ;	Help := "Install a new mod into the game. Supports .ba2 mods, zipped mods, zipped loose-file mods"
+  ;else IfEqual, OutputVarControl, Button6
+  ;	Help := "Save the enabled mods and any tweaks to your fallout65custom.ini file.`nAfter the file has been saved, you can exit the mod manager and play Fallout 76."
+  IfEqual, OutputVarControl, Button7
+  	Help := "Unchecking this will make the game start up instantly, without having to watch the Bethesda logo movie."
+  else IfEqual, OutputVarControl, Button8
+  	Help := "Unchecking this will disable any motion blur.`n`n(May improve FPS)"
+  else IfEqual, OutputVarControl, Button9
+  	Help := "Unchecking this disables all depth of field effects.`n`n(Will improve FPS)"
+  else IfEqual, OutputVarControl, Button10
+  	Help := "Unchecking this allows the FPS to run as high as possible.`n(Improves FPS on powerful machines. Improves input lag)`n`n*Leave this checked if you experience screen tearing"
+  else IfEqual, OutputVarControl, Button11
+    Help := "Unchecking this will remove the grass ingame.`n`n(Improves FPS, may improve visibility)"
+  else IfEqual, OutputVarControl, Button12
+  	Help := "The game reads up/down mouse movement at a different speed than left/right movement, which can throw off your aim.`nChecking this makes mouse movement consistent.`n`n*Your mouse movement may be increased too much whilst standing still, but works fine while you're moving."
+  else IfEqual, OutputVarControl, Button13
+  	Help := "The faster you move your mouse, the further your aim goes.`nPersonal preference if you like this on or off."
+  tooltip % Help
+  ;tooltip % OutputVarControl ; Debug
 }
 
 ;Mod Management

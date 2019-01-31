@@ -1,10 +1,18 @@
 InstallMod(ModFileFullPath)
 {
+  fileinstall,7zip\7z.exe,%A_Temp%\FO76ModMan.temp\7z.exe ;7zip is used for unzipping files.
+  fileinstall,7zip\7z.dll,%A_Temp%\FO76ModMan.temp\7z.dll
   TempUnzippingFolder := A_Temp . "\FO76ModMan.temp\UnzippedMods"
   global ModsFolder
+
   if (SelectedFileSubtype(ModFileFullPath) = "zipped")
   {
     fileremovedir,%TempUnzippingFolder%,1 ;Dir needs to be empty so we can double-check anything actually got extracted.
+    if (ZipFileContainsMod(ModFileFullPath) = "ERROR") ;7zip gives an error if it encounters a corrupted file. So need to take that into account.
+    {
+      msgbox,,Error!,7zip could not open the file:`n%ModFileFullPath%`nas an archive`, it may be corrupt.`n`nTry manually extracting it`, and then either use the "Install a mod" button if it's a .ba2 mod. Or use the "Compile a mod" button if it's a loose file mod.
+      return false
+    }
     if !(ZipFileContainsMod(ModFileFullPath))
     {
       msgbox,,Error!,The selected zip file does not contain any .ba2 or mod files. Please make sure you've selected one that does.`n`nYou selected the file:`n`n%ModFileFullPath%
@@ -13,7 +21,7 @@ InstallMod(ModFileFullPath)
     else if (ZipFileContainsMod(ModFileFullPath) = "Loose")
     {
       UnzipFile(ModFileFullPath,TempUnzippingFolder,0)
-      msgbox,4,Mod Compiler,The zip file appears to be a loose-file mod. It must be compiled to .ba2 in order to be used.`nWould you like to attempt to compile it?
+      msgbox,4,Mod Compiler,The zip file:`n%ModFileFullPath%`nappears to be a loose-file mod. It must be compiled to .ba2 in order to be used.`nWould you like to attempt to compile it?
       ifmsgbox yes
       {
         InputBox, ChosenModName, Mod Name, Please enter a name to call this mod., , 250, 150
@@ -23,10 +31,12 @@ InstallMod(ModFileFullPath)
           {
             msgbox,4,Conflicting Mod,A mod called "%ChosenModName%" already exists. Did you want to overwrite it?
             ifmsgbox yes
-              CompileMod(TempUnzippingFolder,ChosenModName)
+              return % CompileMod(TempUnzippingFolder,ChosenModName)
+            else
+              return false
           }
           else
-            CompileMod(TempUnzippingFolder,ChosenModName)
+            return % CompileMod(TempUnzippingFolder,ChosenModName)
         }
       }
       else
@@ -34,15 +44,26 @@ InstallMod(ModFileFullPath)
     }
     else
     {
+      TotalBa2InZip = 0
       UnzipFile(ModFileFullPath,TempUnzippingFolder,1)
       loop,files,%TempUnzippingFolder%\*.ba2
-        Installba2(A_LoopFileFullPath)
+        TotalBa2InZip ++
+        if TotalBa2InZip = 1
+          return % Installba2(A_LoopFileFullPath)
+        else
+        {
+          loop,files,%TempUnzippingFolder%\*.ba2
+          Installba2(A_LoopFileFullPath)
+          return % "Multiple mods from zip file."
+        }
     }
     ;fileremovedir,%TempUnzippingFolder%,1 ;May as well tidy up now that we're done with extracting.
   }
-  else ;Don't need an if because the GUI can only pick from .ba2 and zip files.
-    Installba2(ModFileFullPath)
-  return true
+  else if instr(ModFileFullPath,".ba2") ;Don't need an if because the GUI can only pick from .ba2 and zip files.
+    return % Installba2(ModFileFullPath)
+  else
+      msgbox,,Error!,Attempted to install a mod that is not a .ba2 file?`nThe mod that was specified to install was:`n%ModFileFullPath%`n`nMake sure you've selected the right file and try again.
+    return false
 }
 
 SelectedFileSubtype(ModFileFullPath)
@@ -84,8 +105,10 @@ SelectedFileSubtype(ModFileFullPath)
   ZipFileContainsMod(FileFullPath)
   {
     ValidModTypes := ["meshes","strings","music","sound","textures","materials","interface","geoexporter","programs","vis","scripts","misc","shadersfx"] ;So we can check to make sure the user selected the right folder. These are all the default root locations the SeventySix*.ba2 files use.
-    cmd := "cmd.exe /q /c " . A_Temp . "\FO76ModMan.temp\7z.exe l """ . FileFullPath
+    cmd := "cmd.exe /q /c " . A_Temp . "\FO76ModMan.temp\7z.exe l """ . FileFullPath . """"
     ListOfFiles := ComObjCreate("WScript.Shell").Exec(cmd).StdOut.ReadAll()
+    if instr(ListofFiles,"Can not open file as archive")
+      return "ERROR"
     if instr(ListOfFiles,.ba2)
       return true
     else
@@ -109,13 +132,14 @@ SelectedFileSubtype(ModFileFullPath)
       if instr(ModName,".ba2")
       {
         filemove,%TheModFullPath%,%ModsFolder%\%ModName%,1
-        ShowStatusText("Successfully installed " . ModName . "!",6000)
+        return % ModName ;So the GUI knows about the mod to show on the status text
       }
       else
         msgbox,,Error!,Attempted to install a mod that is not a .ba2 file?`nThe mod that was specified to install was:`n%TheModFullPath%`n`nMake sure you've selected the right file and try again.
     }
     else
       msgbox,,Error!,Attempted to install a mod, but the mod file was not found. Please double-check to make sure you've selected the right file.`nAttempted to install the following mod:`n`n%TheModFullPath%
+  return false
   }
 
   GetFileNameFromPath(FileFullPath)
@@ -194,7 +218,7 @@ SelectedFileSubtype(ModFileFullPath)
       ifexist,%ModsFolder%\%ModName%.ba2
       {
         ShowStatusText(ModName . ".ba2 successfully compiled!",6000)
-        return true
+        return % ModName . ".ba2"
       }
       else
       {
