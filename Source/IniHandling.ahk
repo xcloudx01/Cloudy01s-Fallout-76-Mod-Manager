@@ -15,10 +15,19 @@ EditCustomIni(Value,Name,Section)
   return
 }
 
-EditModManagerIni(Value,Name,Section)
+EditModManagerIni(Value,Name)
 {
- IniWrite,%Value%,ModManagerPrefs.ini,%Section%,%Name%
- return
+  IniWrite,%Value%,ModManagerPrefs.ini,Settings,%Name%
+  return
+}
+
+LoadModManagerIni(Name)
+{
+  IniRead,LoadedValue,ModManagerPrefs.ini,Settings,%Name%
+  if LoadedValue != ERROR
+    return % LoadedValue
+  else
+    return
 }
 
 EditPrefsIni(Value,Name,Section)

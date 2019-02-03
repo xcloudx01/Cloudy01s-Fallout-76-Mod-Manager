@@ -11,7 +11,7 @@
   #NoEnv
   #SingleInstance Force
   #NoTrayIcon
-  VersionNumber = 1.143
+  VersionNumber = 1.144
   AppName = Cloudy01's Fallout 76 Mod Manager Ver %VersionNumber%
 
 ;Includes
@@ -24,20 +24,20 @@
   Gui, +Resize +0x300000 ; WS_VSCROLL | WS_HSCROLL
 
 ;Help stuff that appears in multiple places.
-  IniFileHelp = This typically is in your my documents folder\My Games\Fallout 76`n`nEg: C:\Users\USERNAME\Documents\My Games\Fallout 76`n`nIf you don't have a Fallout76Custom.ini file, then copy Fallout76.ini and rename it to Fallout76Custom.ini, and then use Notepad to make the file empty.
-  ModFolderHelp = This is usually the data folder in Fallout76`n`nEg: C:\Program Files (x86)\Bethesda.net Launcher\Games\Fallout76\Data
+  ;IniFileHelp = This typically is in your my documents folder\My Games\Fallout 76`n`nEg: C:\Users\USERNAME\Documents\My Games\Fallout 76`n`nIf you don't have a Fallout76Custom.ini file, then copy Fallout76.ini and rename it to Fallout76Custom.ini, and then use Notepad to make the file empty.
+  ModFolderHelp = This should be the data folder in Fallout76`n`nEg: C:\Program Files (x86)\Bethesda.net Launcher\Games\Fallout76\Data
   Fallout76PrefsIni = %A_MyDocuments%\My Games\Fallout 76\Fallout76Prefs.ini
 
 ;Check for the settings file, do a first time setup if not found (We need to know what folder the mods are in so we can populate the GUI with them.)
   ifnotexist,ModManagerPrefs.ini
   {
-    ModsFolder := FindModFolder()
+    ModsFolder := GetFileFromPossibleLocations(["Program Files","Program Files (x86)","Games"],"Bethesda.net Launcher\Games\Fallout76\Data")
     if !(ModsFolder) ;Auto-detect wasn't able to successfully find the right folder. Ask user to do it manually.
     {
       msgbox,,Welcome!,Welcome to the mod manager. In order to use it, please select the folder where your mods are installed.`n`n%ModFolderHelp%
       SetupSelectModFolder:
-        FileSelectFolder,NewModsFolder,,2
-        IfNotExist,%NewModsFolder%\*.ba2
+        FileSelectFolder,ModsFolder,,2
+        IfNotExist,%ModsFolder%\*.ba2
         {
           msgbox,5,Error!,The folder you selected does not contain any .ba2 mod files. Please try again by selecting the folder where mods are installed.`n`n%ModFolderHelp%
           ifMsgBox Retry
@@ -45,12 +45,9 @@
           else
             Exitapp
         }
-        else
-          ModsFolder := NewModsFolder
     }
-    IfNotExist,%A_MyDocuments%\My Games\Fallout 76\Fallout76Custom.ini
-      FileAppend,,%A_MyDocuments%\My Games\Fallout 76\Fallout76Custom.ini
     Fallout76CustomIni = %A_MyDocuments%\My Games\Fallout 76\Fallout76Custom.ini
+    BethesdaLauncherExeFile := GetBethesdaLauncherLocation()
     gosub,SaveSettingsFile
   }
   else
@@ -77,20 +74,19 @@ CreateGUI:
     MouseSensitivityTweakCheckbox := DefaultCheckedStatus(Fallout76CustomIni,"Controls","fMouseHeadingYScale",0)
     MouseAccelCheckbox := DefaultCheckedStatus(Fallout76CustomIni,"Controls","bMouseAcceleration",1)
 
-  Gui, Add, Text, x22 y15 w70 h20 , Mods Folder:
-  Gui, Add, Edit, x92 y9 w361 h20 vModsFolder,%ModsFolder%
-  Gui, Add, Button, x455 y9 w30 h20 gSelectModFolderButton, .. ;Define mods folder button
-  Gui, Add, Button, x490 y9 w15 h20 gModFolderHelpButton, ? ;Mods help button
-  Gui, Add, Text, x22 y37 w150 h20 , Fallout76Custom.ini:
-  Gui, Add, Edit, x122 y30 w330 h20 vFallout76CustomIni,%Fallout76CustomIni%
+  Gui, Add, Text, x22 y15 w150 h20 , Fallout76 Data Folder:
+  Gui, Add, Edit, x135 y9 w340 h20 vModsFolder,%ModsFolder%
+  Gui, Add, Button, x478 y9 w30 h20 gSelectModFolderButton, .. ;Define mods folder button
+  ;Gui, Add, Text, x22 y37 w150 h20 , Fallout76Custom.ini:
+  ;Gui, Add, Edit, x122 y30 w330 h20 vFallout76CustomIni,%Fallout76CustomIni%
   gui,font,Bold
-  Gui, Add, Text, x22 y55 w400 h20 vStatusText
+  Gui, Add, Text, x20 y34 w450 h20 vStatusText
   gui,font,
-  Gui, Add, Button, x455 y30 w30 h20 gSelectIniFileButton, .. ;Define ini file button
-  Gui, Add, Button, x490 y30 w15 h20 gIniFileHelpButton, ? ;Ini help button
-  Gui, Add, Text, w1 h1 x340 y75,
+  ;Gui, Add, Button, x455 y30 w30 h20 gSelectIniFileButton, .. ;Define ini file button
+  Gui, Add, Text, w1 h1 x340 y55,
   Gui, Add, Button,gInstallModButton, Install a mod
   Gui, Add, Button,gSaveButton, Save Settings
+  Gui, Add, Button,gLaunchGameButton, Launch Fallout 76!
   Gui, Add, Text, w1 h1, ;vertical padding
   Gui, Add, Text, w150 h20, Graphics Tweaks:
   Gui, Add, CheckBox, w100 h15 vIntroVideosStatus %IntroCheckbox%, Intro videos
@@ -102,10 +98,10 @@ CreateGUI:
   Gui, Add, Text, w150 h20, Control Tweaks:
   Gui, Add, CheckBox, w150 h15 vMouseSensitivityTweakStatus %MouseSensitivityTweakCheckbox%, Fix mouse Y sensitivity
   Gui, Add, CheckBox, w150 h15 vMouseAccelStatus %MouseAccelCheckbox%, Mouse Acceleration
-; Gui, Add, Button,gPlayGameButton, Play Fallout 76! ;Starting the game via the mod manager just makes the game crash? :(
-  Gui, Add, Text, y380 x340 w120 h20, Developer Tools:
+  Gui, Add, Text, w1 h1, ;vertical padding
+  Gui, Add, Text, w120 h20, Developer Tools:
   Gui, Add, Button,gCompileModButton, Compile a mod
-  Gui, Add, Text, x22 y75 w150 h20, Mods:
+  Gui, Add, Text, x22 y55 w150 h20, Mods:
 
   ;Look for mods and add them to the GUI
     CurrentModNumber = 0 ;Used to create an array of mods with the corresponding values. eg: Mod2 = glow.ba2 (This is used so when writing the fallout65custom.ini we know which mods are enabled.)
@@ -136,8 +132,8 @@ CreateGUI:
 
     if (DesiredGUIHeight / A_ScreenHeight * 100) >= 75 ;Cap the height from going too tall and off the monitor. Capped it at 75%
       DesiredGUIHeight := 0.5 * A_ScreenHeight
-    if  DesiredGUIHeight <= 440 ;User has little/no mods. So we should at least make the GUI a decent size to show all the buttons.
-      DesiredGUIHeight = 440
+    if  DesiredGUIHeight <= 475 ;User has little/no mods. So we should at least make the GUI a decent size to show all the buttons.
+      DesiredGUIHeight = 475
   ;Show the GUI
     Gui, Show, H%DesiredGUIHeight% W510,%AppName%
     Gui, +LastFound
@@ -155,15 +151,20 @@ return
 ;Subroutines
 ;;;;;;;;;;;;;;;;
 SaveSettingsFile:
-  EditModManagerIni(ModsFolder,"ModsFolder","Settings")
-  EditModManagerIni(Fallout76CustomIni,"Fallout76CustomIni","Settings")
+  if (BethesdaLauncherExeFile) ;Only should save values that exist. BethesdaLauncherExeFile can be false if the function GetBethesdaLauncherLocation() didn't find where the exe is.
+    EditModManagerIni(BethesdaLauncherExeFile,"BethesdaLauncherExeFile")
+  if (ModsFolder)
+    EditModManagerIni(ModsFolder,"ModsFolder")
+  if (Fallout76CustomIni)
+    EditModManagerIni(Fallout76CustomIni,"Fallout76CustomIni")
 return
 
 LoadSettingsFile:
   ifexist,ModManagerPrefs.ini
   {
-      IniRead,ModsFolder,ModManagerPrefs.ini,Settings,ModsFolder
-      IniRead,Fallout76CustomIni,ModManagerPrefs.ini,Settings,Fallout76CustomIni
+    ModsFolder := LoadModManagerIni("ModsFolder")
+    Fallout76CustomIni := LoadModManagerIni("Fallout76CustomIni")
+    BethesdaLauncherExeFile := LoadModManagerIni("BethesdaLauncherExeFile") ;If it's not found, it'll just be blank. So we can use "if BethesdaLauncherExeFile = false" statements if we want.
   }
 return
 
@@ -201,6 +202,7 @@ GuiClose:
 ;;;;;;;;;;;;;;;;;
 SaveButton:
   gui,submit,NoHide
+  SavedChanges = 1 ;So the Launch button knows it shouldn't nag the user anymore about clicking save.
 
   ;Goodies
     if IntroVideosStatus = 0
@@ -271,7 +273,7 @@ SaveButton:
       DeleteFromCustomIni("bMouseAcceleration","Controls")
 
   ;FO76 Needs a list of mods in a comma delimited fasion, and mods in different load orders. With the default files first (or the in-game store doesn't load)
-    ShowStatusText("Detecting best load order",30000)
+    ShowStatusText("Detecting which mods go in sResourceStartUpArchiveList",30000)
     CurrentEnabledModNumber = 1
     sResourceArchive2List := "SeventySix - ATX_Main.ba2, SeventySix - ATX_Textures.ba2"
     sResourceStartUpArchiveList := "SeventySix - Interface.ba2, SeventySix - Localization.ba2, SeventySix - Shaders.ba2, SeventySix - Startup.ba2"
@@ -293,7 +295,7 @@ SaveButton:
     EditCustomIni(sResourceIndexFileList,"sResourceIndexFileList","Archive")
     EditCustomIni(sResourceArchive2List,"sResourceArchive2List","Archive")
 
-  ShowStatusText("Successfully saved. You may now start Fallout 76.",3000)
+  ShowStatusText("Successfully saved. You may now start Fallout 76.",6000)
   return
 
 SelectModFolderButton:
@@ -312,23 +314,15 @@ ReScanButton:
   gosub,CreateGUI
   return
 
-SelectIniFileButton:
-  FileSelectFile,NewFallout76CustomIni,2,,Select your Fallout76Custom.ini file,Fallout76Custom.ini
-  if NewFallout76CustomIni !=
-  {
-      Fallout76Custom := NewFallout76CustomIni
-      GuiControl,,Fallout76CustomIni,%Fallout76CustomIni%
-      gosub,SaveSettingsFile
-  }
-  return
-
-ModFolderHelpButton:
-  Msgbox,,Help,This is where your mods are currently installed.`n`n%ModFolderHelp%
-  return
-
-IniFileHelpButton:
-  Msgbox,,Help,This is where your Fallout76Custom.ini is stored. Typically in your documents folder\My Games\Fallout 76`n`nEg: C:\Users\USERNAME\Documents\My Games\Fallout 76`n`nIf you don't have a Fallout76Custom.ini file, then copy Fallout76.ini and rename it to Fallout76Custom.ini, and then use Notepad to make the file empty.
-  return
+;SelectIniFileButton:
+;  FileSelectFile,NewFallout76CustomIni,2,,Select your Fallout76Custom.ini file,Fallout76Custom.ini
+;  if NewFallout76CustomIni !=
+;  {
+;      Fallout76Custom := NewFallout76CustomIni
+;      GuiControl,,Fallout76CustomIni,%Fallout76CustomIni%
+;      gosub,SaveSettingsFile
+;  }
+;  return
 
 InstallModButton:
 FileSelectFile,SelectedFilesToInstall,M3,,Please select a .ba2 mod file`,or a zipped mod containing either a .ba2 file or a loose-files mod.,Mods (*.ba2;*.zip;*.7z;*.rar)
@@ -376,6 +370,82 @@ CompileModButton:
   }
 return
 
+LaunchGameButton:
+  if !(SavedChanges)
+  {
+    msgbox,3,Notice,No changes were saved.`n`nWould you like to save your settings before launching the game?
+    ifmsgbox yes
+      gosub,SaveButton
+    else ifmsgbox cancel
+      return
+  }
+  ifnotexist,%BethesdaLauncherExeFile%
+  {
+    BethesdaLauncherExeFile := GetBethesdaLauncherLocation() ;This is only auto-detected if the settings file didn't exist at all. So for people using an older version of the manager, they need this re-checked.
+    ifnotexist,%BethesdaLauncherExeFile%
+    {
+      msgbox,,Setup,Please select your BethesdaNetLauncher.exe file. This should typically be in a folder such as:`nC:\Program Files (x86)\Bethesda.net Launcher\
+      FileSelectFile,BethesdaLauncherExeFile,3,,Please select your BethesdaNetLauncher.exe file,BethesdaNetLauncher.exe
+      ifexist,%BethesdaLauncherExeFile%
+        EditModManagerIni(BethesdaLauncherExeFile,"BethesdaLauncherExe")
+    }
+  }
+  ifnotexist,%BethesdaLauncherExeFile%
+    msgbox,,Error!,Something went wrong trying to launch the game.`nThe BethesdaNetLauncher.exe file could not be found? Attempted to load it from:`n`n%BethesdaLauncherExeFile%
+  else
+    run,%BethesdaLauncherExeFile% bethesdanet://run/20
+  Process, Exist, BethesdaNetLauncher.exe
+    Winactivate, ahk_pid %ErrorLevel%
+
+  ;GUI Stuff
+    errorlevel = 0
+    while (errorlevel = 0) and (A_Index < 10)
+    {
+      ShowStatusText("Launching game",1000)
+      sleep,500
+      ShowStatusText("Launching game.",1000)
+      sleep,500
+      ShowStatusText("Launching game..",1000)
+      sleep,500
+      ShowStatusText("Launching game...",1000)
+      sleep,500
+      process,exist,Fallout76.exe
+    }
+    if (errorlevel = 0)
+      ShowStatusText("Game did not start in a resonable time. Check the Bethesda Launcher.",15000)
+return
+
+GetBethesdaLauncherLocation()
+{
+  global ModsFolder
+  LauncherExeFile := "BethesdaNetLauncher.exe"
+  if (ModsFolder) ;Launcher is likely 2-steps above the data folder. So we should check there.
+  {
+    ModsFolderArray := strsplit(ModsFolder,"\")
+    Loop % ModsFolderArray.length() - 3 ;Want the root folder to check for bethesda launcher
+    {
+      if A_Index = 1
+        GameParentFolder := ModsFolderArray[A_Index]
+      else
+        GameParentFolder := GameParentFolder . "\" . ModsFolderArray[A_Index]
+    }
+  }
+  LauncherLocation := GetFileFromPossibleLocations([GameParentFolder,"Program Files (x86)\Bethesda.net Launcher","Program Files\Bethesda.net Launcher","Games\Bethesda.net Launcher"], LauncherExeFile)
+  if !(LauncherLocation)
+    return
+  else
+    return % LauncherLocation
+  ;msgbox,,Info,Please select your BethesdaNetLauncher.exe file. This should be wherever the bethesda launcher is installed.
+}
+
+
+
+
+
+;;;;;;;;;;;;;;;;;;;;;
+;Functions
+;;;;;;;;;;;;;;;;;;;;;
+
 GetGameExePath()
 {
   global ModsFolder
@@ -391,15 +461,6 @@ GetGameExePath()
 }
 
 
-
-
-
-
-
-;;;;;;;;;;;;;;;;;;;;;
-;Functions
-;;;;;;;;;;;;;;;;;;;;;
-
 GuiDropFiles(GuiHwnd, FileArray, CtrlHwnd, X, Y)
 {
   for i, file in FileArray
@@ -414,26 +475,30 @@ GuiDropFiles(GuiHwnd, FileArray, CtrlHwnd, X, Y)
 HoverOverElementHelp(wParam, lParam, Msg)
 {
   MouseGetPos,,,, OutputVarControl
-  ;IfEqual, OutputVarControl, Button5
-  ;	Help := "Install a new mod into the game. Supports .ba2 mods, zipped mods, zipped loose-file mods"
-  ;else IfEqual, OutputVarControl, Button6
-  ;	Help := "Save the enabled mods and any tweaks to your fallout65custom.ini file.`nAfter the file has been saved, you can exit the mod manager and play Fallout 76."
-  IfEqual, OutputVarControl, Button6
-    Help := "Mods are currently set to load in alphabetical/numerical order.`nIf this causes issues, rename the mod you want to have higher priority to have a 1 infront of it.`n`nEg: PerkLoadoutManager > 1PerkLoadoutManager`n`nThis will be made automatic in a future update, but for now this is a work-around."
-  else IfEqual, OutputVarControl, Button7
-  	Help := "Unchecking this will make the game start up instantly, without having to watch the Bethesda logo movie."
-  else IfEqual, OutputVarControl, Button8
-  	Help := "Unchecking this will disable any motion blur.`n`n(May improve FPS)"
-  else IfEqual, OutputVarControl, Button9
-  	Help := "Unchecking this disables all depth of field effects.`n`n(Will improve FPS)"
-  else IfEqual, OutputVarControl, Button10
-  	Help := "Unchecking this allows the FPS to run as high as possible.`n(Improves FPS on powerful machines. Improves input lag)`n`n*Leave this checked if you experience screen tearing"
-  else IfEqual, OutputVarControl, Button11
-    Help := "Unchecking this will remove the grass ingame.`n`n(Improves FPS, may improve visibility)"
-  else IfEqual, OutputVarControl, Button12
-  	Help := "The game reads up/down mouse movement at a different speed than left/right movement, which can throw off your aim.`nChecking this makes mouse movement consistent.`n`n*Your mouse movement may be increased too much whilst standing still, but works fine while you're moving."
-  else IfEqual, OutputVarControl, Button13
-  	Help := "The faster you move your mouse, the further your aim goes.`nPersonal preference if you like this on or off."
+  ;Folders
+    global ModFolderHelp
+    IfEqual, OutputVarControl, Edit1
+      Help := "This is where your mods are currently installed.`n`n" . ModFolderHelp
+    ;else IfEqual, OutputVarControl, Edit2
+    ;    Help := "This is where your Fallout76Custom.ini is stored. Typically in your 'My documents folder\My Games\Fallout 76'`n`nEg: C:\Users\USERNAME\Documents\My Games\Fallout 76`n`nIf you don't have a Fallout76Custom.ini file, when you click 'Save settings' we'll create one for you."
+
+  ;Tweaks
+    else IfEqual, OutputVarControl, Button3
+      Help := "Mods are currently set to load in alphabetical/numerical order.`nIf this causes issues, rename the mod you want to have higher priority to have a 1 infront of it.`n`nEg: PerkLoadoutManager > 1PerkLoadoutManager`n`nThis will be made automatic in a future update, but for now this is a work-around."
+    else IfEqual, OutputVarControl, Button5
+    	Help := "Unchecking this will make the game start up instantly, without having to watch the Bethesda logo movie."
+    else IfEqual, OutputVarControl, Button6
+    	Help := "Unchecking this will disable any motion blur.`n`n(May improve FPS)"
+    else IfEqual, OutputVarControl, Button7
+    	Help := "Unchecking this disables all depth of field effects.`n`n(Will improve FPS)"
+    else IfEqual, OutputVarControl, Button8
+    	Help := "Unchecking this allows the FPS to run as high as possible.`n(Improves FPS on powerful machines. Improves input lag)`n`n*Leave this checked if you experience screen tearing"
+    else IfEqual, OutputVarControl, Button9
+      Help := "Unchecking this will remove the grass ingame.`n`n(Improves FPS, may improve visibility)"
+    else IfEqual, OutputVarControl, Button10
+    	Help := "The game reads up/down mouse movement at a different speed than left/right movement, which can throw off your aim.`nChecking this makes mouse movement consistent.`n`n*Your mouse movement may be increased too much whilst standing still, but works fine while you're moving."
+    else IfEqual, OutputVarControl, Button11
+    	Help := "The faster you move your mouse, the further your aim goes.`nPersonal preference if you like this on or off."
   tooltip % Help
   ;tooltip % OutputVarControl ; Debug
 }
@@ -498,28 +563,33 @@ HoverOverElementHelp(wParam, lParam, Msg)
   }
 
 
-  FindModFolder()
+  GetFileFromPossibleLocations(PossibleLocationsArray,GoalFileOrPath)
   {
-    ;We should check if the game is in a default location on each HDD. We do this so the user doesn't have to manually define the mod folder upon first launch.
+    ;Scan exact paths first. eg C:\Folder\SubFolder
+      loop % PossibleLocationsArray.Length()
+        if instr(PossibleLocationsArray[A_Index],":\")
+        {
+          FileFolderOfInterest := PossibleLocationsArray[A_Index] . "\" . GoalFileOrPath
+          if FileExist(FileFolderOfInterest)
+            return FileFolderOfInterest
+        }
+
+    ;Scan all drives
       DriveGet,DriveLetters,List
       DriveLettersArray := StrSplit(DriveLetters)
-      PossibleGameLocationsArray := Array("Program Files\","Program Files (x86)\","Games\","")
-      TypicalGameSubDir = Bethesda.net Launcher\Games\Fallout76\Data
-
-    loop % DriveLettersArray.Length()
-    {
-      CurrentDrive := DriveLettersArray[A_Index]
-      loop % PossibleGameLocationsArray.Length()
+      loop % DriveLettersArray.Length()
       {
-          GameFolder := CurrentDrive . ":\" . PossibleGameLocationsArray[A_Index] . TypicalGameSubDir
-          if FileExist(GameFolder)
-          {
-            ModsFolder := GameFolder
-            break
-          }
+        CurrentDrive := DriveLettersArray[A_Index]
+        loop % PossibleLocationsArray.Length()
+        {
+          if !PossibleLocationsArray[A_Index] ;This is needed because we can pass a variable into the array. But if that variable was blank, we can skip scanning it.
+            continue
+          FileFolderOfInterest := CurrentDrive . ":\" . PossibleLocationsArray[A_Index] . "\" . GoalFileOrPath
+          if FileExist(FileFolderOfInterest)
+            return FileFolderOfInterest
+        }
       }
-    }
-    return ModsFolder
+      return false
   }
 
   ModAlreadyEnabled(Query)
