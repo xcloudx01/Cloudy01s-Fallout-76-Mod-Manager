@@ -13,6 +13,7 @@
   #NoTrayIcon
   VersionNumber = 1.144
   AppName = Cloudy01's Fallout 76 Mod Manager Ver %VersionNumber%
+  debug("Program not working correctly? Copy-paste this into a comment or forum post on https://www.nexusmods.com/fallout76/mods/221 to aid in debugging.`n`nOutput log file:`nVersion: " . VersionNumber) ;Should format the top of the log file to aid users.
 
 ;Includes
   #include InstallMods.ahk
@@ -31,14 +32,17 @@
 ;Check for the settings file, do a first time setup if not found (We need to know what folder the mods are in so we can populate the GUI with them.)
   ifnotexist,ModManagerPrefs.ini
   {
+    debug("ModManagerPrefs.ini wasn't found.")
     ModsFolder := GetFileFromPossibleLocations(["Program Files","Program Files (x86)","Games"],"Bethesda.net Launcher\Games\Fallout76\Data")
     if !(ModsFolder) ;Auto-detect wasn't able to successfully find the right folder. Ask user to do it manually.
     {
+      debug("Couldn't auto-detect where the mods folder is.")
       msgbox,,Welcome!,Welcome to the mod manager. In order to use it, please select the folder where your mods are installed.`n`n%ModFolderHelp%
       SetupSelectModFolder:
         FileSelectFolder,ModsFolder,,2
         IfNotExist,%ModsFolder%\*.ba2
         {
+          debug("The user provided ModsFolder: " . ModsFolder . " But it didn't contain any .ba2 files")
           msgbox,5,Error!,The folder you selected does not contain any .ba2 mod files. Please try again by selecting the folder where mods are installed.`n`n%ModFolderHelp%
           ifMsgBox Retry
             goto,SetupSelectModFolder
@@ -64,6 +68,7 @@
 ;GUI
 ;;;;;;;;;;;;;
 CreateGUI:
+  debug("Making GUI..")
   DesiredGUIHeight = 205 ;Default height if zero mods are found. Height is added later on on a per mod found basis.
   ;We should find which settings need to be pre-filled on the GUI, so the user can load their settings.
     IntroCheckbox := DefaultCheckedStatus(Fallout76CustomIni,"General","sIntroSequence",1) ;These need to be either blank or "Checked" in AHK Language so the GUI can create them accordingly.
@@ -75,7 +80,7 @@ CreateGUI:
     MouseAccelCheckbox := DefaultCheckedStatus(Fallout76CustomIni,"Controls","bMouseAcceleration",1)
 
   Gui, Add, Text, x22 y15 w150 h20 , Fallout76 Data Folder:
-  Gui, Add, Edit, x135 y9 w340 h20 vModsFolder,%ModsFolder%
+  Gui, Add, Edit, x135 y9 w340 h20 vModsFolder ReadOnly,%ModsFolder% ;Has to be read-only otherwise the user could type in a value and not save it, then the script assumes it hasn't been changed. Just helps avoid user confusion
   Gui, Add, Button, x478 y9 w30 h20 gSelectModFolderButton, .. ;Define mods folder button
   ;Gui, Add, Text, x22 y37 w150 h20 , Fallout76Custom.ini:
   ;Gui, Add, Edit, x122 y30 w330 h20 vFallout76CustomIni,%Fallout76CustomIni%
@@ -85,7 +90,7 @@ CreateGUI:
   ;Gui, Add, Button, x455 y30 w30 h20 gSelectIniFileButton, .. ;Define ini file button
   Gui, Add, Text, w1 h1 x340 y55,
   Gui, Add, Button,gInstallModButton, Install a mod
-  Gui, Add, Button,gSaveButton, Save Settings
+  Gui, Add, Button,gSaveCustomIniButton, Save Settings
   Gui, Add, Button,gLaunchGameButton, Launch Fallout 76!
   Gui, Add, Text, w1 h1, ;vertical padding
   Gui, Add, Text, w150 h20, Graphics Tweaks:
@@ -101,6 +106,7 @@ CreateGUI:
   Gui, Add, Text, w1 h1, ;vertical padding
   Gui, Add, Text, w120 h20, Developer Tools:
   Gui, Add, Button,gCompileModButton, Compile a mod
+  Gui, Add, Button,gOutputDebugButton, Output debug log
   Gui, Add, Text, x22 y55 w150 h20, Mods:
 
   ;Look for mods and add them to the GUI
@@ -134,6 +140,7 @@ CreateGUI:
       DesiredGUIHeight := 0.5 * A_ScreenHeight
     if  DesiredGUIHeight <= 475 ;User has little/no mods. So we should at least make the GUI a decent size to show all the buttons.
       DesiredGUIHeight = 475
+
   ;Show the GUI
     Gui, Show, H%DesiredGUIHeight% W510,%AppName%
     Gui, +LastFound
@@ -151,6 +158,7 @@ return
 ;Subroutines
 ;;;;;;;;;;;;;;;;
 SaveSettingsFile:
+  debug("SaveSettingsFile sub-routine starting")
   if (BethesdaLauncherExeFile) ;Only should save values that exist. BethesdaLauncherExeFile can be false if the function GetBethesdaLauncherLocation() didn't find where the exe is.
     EditModManagerIni(BethesdaLauncherExeFile,"BethesdaLauncherExeFile")
   if (ModsFolder)
@@ -160,6 +168,7 @@ SaveSettingsFile:
 return
 
 LoadSettingsFile:
+  debug("LoadSettingsFile sub-routine starting")
   ifexist,ModManagerPrefs.ini
   {
     ModsFolder := LoadModManagerIni("ModsFolder")
@@ -181,9 +190,40 @@ GuiClose:
   ExitApp
 
 
+GuiContextMenu: ;What gets called when you right-click on the GUI. Can't change the function name because of how AutoHotKey just works..
+if instr(A_GuiControl,"ModStatus")
+{
+  RightClickID := StrReplace(A_GuiControl,"ModStatus")
+  RightClickID := ModName%RightClickID% ;Need to fetch contents from Modname5 or similiar variable.
+  ;Reset the menu to be blank
+    Menu, MyMenu, Add, Uninstall, RightClickMenu_ClickedButton ;FFF AHK doesn't have an if check for menus, so gotta just make something exist first then delete it to make sure the menu is empty.
+    Menu, MyMenu, DeleteAll
+  Menu, MyMenu, Add, Uninstall %RightClickID%, RightClickMenu_ClickedButton
+  Menu, MyMenu, Show,  %A_GuiX%, %A_GuiY%
+}
+return
 
-
-
+RightClickMenu_ClickedButton:
+  UninstallModName := strreplace(A_ThisMenuItem,"Uninstall ")
+  gui,hide ;Without this the user can accidentally invoke the tooltips that hover over the msgbox and get in the way.
+  MsgBox,4,Warning,The following mod will be uninstalled and sent to the recycle bin:`n%UninstallModName%`n`nAre you sure?
+  ifmsgbox yes
+  {
+    debug("Uninstalling the mod: " . UninstallModName)
+    filerecycle,% ModsFolder . "\" . strreplace(A_ThisMenuItem,"Uninstall ")
+    fileread,Temp,%Fallout76CustomIni%
+    ;Immediately remove it from the customini file so the game doesn't try to load a deleted mod.
+      Temp := strreplace(Temp,"," . UninstallModName)
+      Temp := strreplace(Temp,UninstallModName . ",")
+      Temp := strreplace(Temp,UninstallModName)
+    filedelete,%Fallout76CustomIni%
+    fileappend,%Temp%,%Fallout76CustomIni%
+    gosub,SaveTweaksToCustomIni
+    goto,ReScanForMods
+  }
+  else
+    gui,show
+return
 
 
 
@@ -200,7 +240,13 @@ GuiClose:
 ;;;;;;;;;;;;;;;;;
 ;GUI Buttons
 ;;;;;;;;;;;;;;;;;
-SaveButton:
+SaveCustomIniButton:
+  gosub,SaveTweaksToCustomIni ;This is two seperate functions so when deleting a mod we can just save the currently checked tweaks.
+  gosub,SaveModListToCustomIni
+return
+
+SaveTweaksToCustomIni:
+  debug("SaveTweaksToCustomIni sub-routine starting")
   gui,submit,NoHide
   SavedChanges = 1 ;So the Launch button knows it shouldn't nag the user anymore about clicking save.
 
@@ -271,7 +317,11 @@ SaveButton:
     }
     else
       DeleteFromCustomIni("bMouseAcceleration","Controls")
+return
 
+SaveModListToCustomIni:
+  gui,submit,NoHide
+  debug("SaveModListToCustomIni subroutine running.")
   ;FO76 Needs a list of mods in a comma delimited fasion, and mods in different load orders. With the default files first (or the in-game store doesn't load)
     ShowStatusText("Detecting which mods go in sResourceStartUpArchiveList",30000)
     CurrentEnabledModNumber = 1
@@ -296,20 +346,23 @@ SaveButton:
     EditCustomIni(sResourceArchive2List,"sResourceArchive2List","Archive")
 
   ShowStatusText("Successfully saved. You may now start Fallout 76.",6000)
-  return
+return
+
 
 SelectModFolderButton:
+  debug("SelectModFolderButton sub-routine starting")
   FileSelectFolder,NewModsFolder,,2
   if NewModsFolder !=
   {
     ModsFolder := NewModsFolder
     GuiControl,,ModsFolder,%ModsFolder%
     gosub,SaveSettingsFile
-    gosub,ReScanButton ;We need to re-scan for mods because the user defined a new mod folder.
+    gosub,ReScanForMods ;We need to re-scan for mods because the user defined a new mod folder.
   }
   return
 
-ReScanButton:
+ReScanForMods:
+  debug("ReScanForMods sub-routine starting")
   gui,destroy
   gosub,CreateGUI
   return
@@ -324,28 +377,37 @@ ReScanButton:
 ;  }
 ;  return
 
+OutputDebugButton:
+  FileDelete,%A_Temp%\FO76ModMan.temp\DebugOutput.txt
+  ifexist,%Fallout76CustomIni%
+    fileread,DebugTextFallout76Custom,%Fallout76CustomIni%
+  FileAppend,%DebugText% `n`nFallout76Custom:`n%DebugTextFallout76Custom%,%A_Temp%\FO76ModMan.temp\DebugOutput.txt
+  run,%A_Temp%\FO76ModMan.temp\DebugOutput.txt
+  return
+
 InstallModButton:
-FileSelectFile,SelectedFilesToInstall,M3,,Please select a .ba2 mod file`,or a zipped mod containing either a .ba2 file or a loose-files mod.,Mods (*.ba2;*.zip;*.7z;*.rar)
-if (SelectedFilesToInstall)
-{
-  SelectedModsArray := strsplit(SelectedFilesToInstall,"`n")
-  loop % SelectedModsArray.length()
-  if A_Index = 1
-    continue
-  else
+  debug("InstallModButton sub-routine starting.")
+  FileSelectFile,SelectedFilesToInstall,M3,,Please select a .ba2 mod file`,or a zipped mod containing either a .ba2 file or a loose-files mod.,Mods (*.ba2;*.zip;*.7z;*.rar)
+  if (SelectedFilesToInstall)
   {
-    FileToInstall := SelectedModsArray[1] . "\" . SelectedModsArray[A_Index]
-    NewlyInstalledMod := InstallMod(FileToInstall)
-    if (NewlyInstalledMod) ;A mod succeeded so the GUI needs to be updated to reflect the change.
-      ShouldUpdateGUI = 1
+    SelectedModsArray := strsplit(SelectedFilesToInstall,"`n")
+    loop % SelectedModsArray.length()
+    if A_Index = 1
+      continue
+    else
+    {
+      FileToInstall := SelectedModsArray[1] . "\" . SelectedModsArray[A_Index]
+      NewlyInstalledMod := InstallMod(FileToInstall)
+      if (NewlyInstalledMod) ;A mod succeeded so the GUI needs to be updated to reflect the change.
+        ShouldUpdateGUI = 1
+    }
+    if ShouldUpdateGUI ;GUI needs to be updated to show the new mod if it was installed successfully.
+    {
+      gosub,ReScanForMods
+      guicontrol,,StatusText,Successfully installed: %NewlyInstalledMod%
+    }
   }
-  if ShouldUpdateGUI ;GUI needs to be updated to show the new mod if it was installed successfully.
-  {
-    gosub,ReScanButton
-    guicontrol,,StatusText,Successfully installed: %NewlyInstalledMod%
-  }
-}
-return
+  return
 
 CompileModButton:
   msgbox,,Help Info,Please select the ROOT folder that contains all the mod's files and folders.
@@ -364,7 +426,7 @@ CompileModButton:
       else
       {
         CompileMod(SelectedModToCompileFolder,ChosenModName)
-        gosub,ReScanButton
+        gosub,ReScanForMods
       }
     }
   }
@@ -375,15 +437,17 @@ LaunchGameButton:
   {
     msgbox,3,Notice,No changes were saved.`n`nWould you like to save your settings before launching the game?
     ifmsgbox yes
-      gosub,SaveButton
+      gosub,SaveCustomIniButton
     else ifmsgbox cancel
       return
   }
   ifnotexist,%BethesdaLauncherExeFile%
   {
+    debug("LaunchGameButton - Attempting detection of BethesdaLauncher exe")
     BethesdaLauncherExeFile := GetBethesdaLauncherLocation() ;This is only auto-detected if the settings file didn't exist at all. So for people using an older version of the manager, they need this re-checked.
     ifnotexist,%BethesdaLauncherExeFile%
     {
+      debug("LaunchGameButton - Wasn't able to auto-detect launcher location")
       msgbox,,Setup,Please select your BethesdaNetLauncher.exe file. This should typically be in a folder such as:`nC:\Program Files (x86)\Bethesda.net Launcher\
       FileSelectFile,BethesdaLauncherExeFile,3,,Please select your BethesdaNetLauncher.exe file,BethesdaNetLauncher.exe
       ifexist,%BethesdaLauncherExeFile%
@@ -391,9 +455,15 @@ LaunchGameButton:
     }
   }
   ifnotexist,%BethesdaLauncherExeFile%
+  {
+    debug("LaunchGameButton - ERROR The launcher doesn't exist in: " . BethesdaLauncherExeFile)
     msgbox,,Error!,Something went wrong trying to launch the game.`nThe BethesdaNetLauncher.exe file could not be found? Attempted to load it from:`n`n%BethesdaLauncherExeFile%
+  }
   else
+  {
+    debug("LaunchGameButton - Launching " . BethesdaLauncherExeFile)
     run,%BethesdaLauncherExeFile% bethesdanet://run/20
+  }
   Process, Exist, BethesdaNetLauncher.exe
     Winactivate, ahk_pid %ErrorLevel%
 
@@ -412,7 +482,12 @@ LaunchGameButton:
       process,exist,Fallout76.exe
     }
     if (errorlevel = 0)
-      ShowStatusText("Game did not start in a resonable time. Check the Bethesda Launcher.",15000)
+    {
+      debug("LaunchGameButton - The game didn't appear to launch in a reasonable time.")
+      ShowStatusText("Game did not start in a reasonable time. Check the Bethesda Launcher.",15000)
+    }
+    else
+      debug("LaunchGameButton - The game launched successfully.")
 return
 
 GetBethesdaLauncherLocation()
@@ -435,7 +510,6 @@ GetBethesdaLauncherLocation()
     return
   else
     return % LauncherLocation
-  ;msgbox,,Info,Please select your BethesdaNetLauncher.exe file. This should be wherever the bethesda launcher is installed.
 }
 
 
@@ -445,6 +519,13 @@ GetBethesdaLauncherLocation()
 ;;;;;;;;;;;;;;;;;;;;;
 ;Functions
 ;;;;;;;;;;;;;;;;;;;;;
+
+Debug(InputString)
+{
+  global DebugText
+  DebugText := DebugText . "`n" . InputString
+  return
+}
 
 GetGameExePath()
 {
@@ -467,7 +548,7 @@ GuiDropFiles(GuiHwnd, FileArray, CtrlHwnd, X, Y)
     NewlyInstalledMod := InstallMod(file)
   if NewlyInstalledMod ;GUI needs to be updated to show the new mod if it was installed successfully.
   {
-    gosub,ReScanButton
+    gosub,ReScanForMods
     guicontrol,,StatusText,Successfully installed: %NewlyInstalledMod%
   }
 }
