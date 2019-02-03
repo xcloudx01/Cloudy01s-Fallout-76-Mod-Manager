@@ -25,6 +25,9 @@ Features:
 4. Click the "Save Settings" button.
 5. Play the game!
 
+## Uninstalling mods
+1. Right-click the mod you want to uninstall and then click the button "Uninstall" which is followed by the name of the mod. Eg "Uninstall Bag.ba2"
+
 
 ## Notes
 The manager assigns mods in each category to load in alphabetical order. The ability to change it to a custom order will be added in the future.
