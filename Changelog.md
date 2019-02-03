@@ -1,4 +1,4 @@
-#Changelog (newest to oldest):
+# Changelog (newest to oldest):
 
   ## 1.15:
   -  Added a button to launch the game from the mod manager.
