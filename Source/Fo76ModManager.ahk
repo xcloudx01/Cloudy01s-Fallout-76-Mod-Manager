@@ -10,7 +10,7 @@
     #NoEnv
     #SingleInstance Force
     #NoTrayIcon
-    VersionNumber = 1.15
+    VersionNumber = 1.151
     AppName = Cloudy01's Fallout 76 Mod Manager Ver %VersionNumber%
     debug("Program not working correctly? Copy-paste this into a comment or forum post on https://www.nexusmods.com/fallout76/mods/221 to aid in debugging.`n`nOutput log file:`nVersion: " . VersionNumber) ;Should format the top of the log file to aid users.
     Fallout76PrefsIni = %A_MyDocuments%\My Games\Fallout 76\Fallout76Prefs.ini
@@ -823,7 +823,7 @@
         return 0.028
       else if AspectRatio = 1.60 ;16:10
         return 0.0336
-      else if AspectRatio = 2.37 ;21:9
+      else if AspectRatio = 2.39 ;21:9
         return 0.042
       else
         return Round(AspectRatio / 4.761904761904762,5) ;User is using some crazy resolution, try guessing the correct value. (Correct values are on PCGW. Eg: 1920x1080 / X = 0.3738. Find X by dividing the divisor by quotient)"
