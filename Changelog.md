@@ -1,5 +1,8 @@
 # Changelog (newest to oldest):
 
+  ## 1.152:
+  - Bug fixes. (Mods wouldn't install if your username in Windows had a space in it)
+
   ## 1.15:
   -  Added a button to launch the game from the mod manager.
   -  Added mod uninstall feature. Right-click a mod and click Uninstall to remove it. It will be sent to the recycle bin and removed from Fallout76Custom.ini

@@ -263,7 +263,8 @@ InstallMod(ModFileFullPath)
     {
       debug("ZipFileContainsMod - Using 7z to check if " . FileFullPath . " contains mod files.")
       ValidModTypes := ["meshes","strings","music","sound","textures","materials","interface","geoexporter","programs","vis","scripts","misc","shadersfx"] ;So we can check to make sure the user selected the right folder. These are all the default root locations the SeventySix*.ba2 files use.
-      cmd := "cmd.exe /q /c " . A_Temp . "\FO76ModMan.temp\7z.exe l """ . FileFullPath . """"
+      ;cmd := "cmd.exe /q /c """ . A_Temp . "\FO76ModMan.temp\7z.exe"" l """ . FileFullPath . """"
+      cmd := """" . A_Temp . "\FO76ModMan.temp\7z.exe"" l """ . FileFullPath . """"
       ListOfFiles := ComObjCreate("WScript.Shell").Exec(cmd).StdOut.ReadAll()
       debug("ZipFileContainsMod - 7zips output log:`n`n" . ListOfFiles)
       if instr(ListofFiles,"Can not open file as archive")

@@ -10,7 +10,7 @@
     #NoEnv
     #SingleInstance Force
     #NoTrayIcon
-    VersionNumber = 1.151
+    VersionNumber = 1.152
     AppName = Cloudy01's Fallout 76 Mod Manager Ver %VersionNumber%
     debug("Program not working correctly? Copy-paste this into a comment or forum post on https://www.nexusmods.com/fallout76/mods/221 to aid in debugging.`n`nOutput log file:`nVersion: " . VersionNumber) ;Should format the top of the log file to aid users.
     Fallout76PrefsIni = %A_MyDocuments%\My Games\Fallout 76\Fallout76Prefs.ini
@@ -698,12 +698,14 @@
       ;We should re-scan existing mods if the mod was updated (In-case it needs a changed load order)
         if HasBeenModified(TheMod)
           filedelete,%A_Temp%\FO76ModMan.temp\%TheMod%.txt
+        if !(fileHasContent(A_Temp . "\FO76ModMan.temp\" . TheMod . ".txt"))
+          filedelete,%A_Temp%\FO76ModMan.temp\%TheMod%.txt
 
       ;We need to dump the contents of the mod so we can scan what files it contains, then sort accordingly
         ifnotexist,%A_Temp%\FO76ModMan.temp\%TheMod%.txt
         {
-          cmd := "cmd.exe /q /c " . A_Temp . "\FO76ModMan.temp\bsab.exe /l """ . ModsFolder . "\" . TheMod . """" ;This mess is because the command must be literal: bsab.exe "C:\PATH-TO-FILE\TheMod.ba2" to work.
-        ;  msgbox % cmd
+          cmd := """" . A_Temp . "\FO76ModMan.temp\bsab.exe"" /l """ . ModsFolder . "\" . TheMod . """" ;This mess is because the command must be literal: bsab.exe "C:\PATH-TO-FILE\TheMod.ba2" to work.
+          debug("Running the following windows command: " . cmd)
           ListOfFiles := ComObjCreate("WScript.Shell").Exec(cmd).StdOut.ReadAll()
           FileAppend,%ListOfFiles%,%A_Temp%\FO76ModMan.temp\%TheMod%.txt
         }
@@ -730,6 +732,15 @@
           else
             return "sResourceArchive2List"
         }
+    }
+
+  fileHasContent(TheFile)
+    {
+      fileread,FileContents,%TheFile%
+      if !(FileContents)
+        return false
+      else
+        return true
     }
 
   HasBeenModified(TheMod)
