@@ -1,5 +1,8 @@
 # Changelog (newest to oldest):
 
+  ## 1.53:
+  - Fixed Atomic Shop icons not working after the Feb 19th update. (Thanks Caladon)
+
   ## 1.152:
   - Bug fixes. (Mods wouldn't install if your username in Windows had a space in it)
 

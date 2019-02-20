@@ -10,7 +10,7 @@
     #NoEnv
     #SingleInstance Force
     #NoTrayIcon
-    VersionNumber = 1.152
+    VersionNumber = 1.153
     AppName = Cloudy01's Fallout 76 Mod Manager Ver %VersionNumber%
     debug("Program not working correctly? Copy-paste this into a comment or forum post on https://www.nexusmods.com/fallout76/mods/221 to aid in debugging.`n`nOutput log file:`nVersion: " . VersionNumber) ;Should format the top of the log file to aid users.
     Fallout76PrefsIni = %A_MyDocuments%\My Games\Fallout 76\Fallout76Prefs.ini
@@ -311,7 +311,7 @@
       ;FO76 Needs a list of mods in a comma delimited fasion, and mods in different load orders. With the default files first (or the in-game store doesn't load)
         ShowStatusText("Detecting which mods go in sResourceStartUpArchiveList",30000)
         CurrentEnabledModNumber = 1
-        sResourceArchive2List := "SeventySix - ATX_Main.ba2, SeventySix - ATX_Textures.ba2"
+        sResourceArchive2List := "SeventySix - 00UpdateMain.ba2, SeventySix - 00UpdateStream.ba2, SeventySix - 00UpdateTextures.ba2"
         sResourceStartUpArchiveList := "SeventySix - Interface.ba2, SeventySix - Localization.ba2, SeventySix - Shaders.ba2, SeventySix - Startup.ba2"
         sResourceIndexFileList := "SeventySix - Textures01.ba2, SeventySix - Textures02.ba2, SeventySix - Textures03.ba2, SeventySix - Textures04.ba2, SeventySix - Textures05.ba2, SeventySix - Textures06.ba2"
         loop %TotalNumberOfMods%
