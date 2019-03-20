@@ -18,6 +18,7 @@
   EditCustomIni(Value,Name,Section)
     {
       global Fallout76CustomIni
+      MakeSureFolderExistsInMyDocs()
       IniWrite,%Value%,%Fallout76CustomIni%,%Section%,%Name%
       return
     }
@@ -36,6 +37,7 @@
   EditPrefsIni(Value,Name,Section)
     {
       global Fallout76PrefsIni
+      MakeSureFolderExistsInMyDocs()
       IniWrite,%Value%,%Fallout76PrefsIni%,%Section%,%Name%
       return
     }
@@ -57,3 +59,11 @@
         else return "Checked"
       }
     }
+
+  MakeSureFolderExistsInMyDocs()
+  {
+    global Fallout76CustomIni
+    IfNotExist,Fallout76CustomIni
+    FileCreateDir,% SubStr(Fallout76CustomIni,1,-20)
+    return
+  }
