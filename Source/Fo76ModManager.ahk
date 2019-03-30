@@ -10,7 +10,7 @@
     #NoEnv
     #SingleInstance Force
     #NoTrayIcon
-    VersionNumber = 1.16
+    VersionNumber = 1.161
     AppName = Cloudy01's Fallout 76 Mod Manager Ver %VersionNumber%
     debug("Program not working correctly? Copy-paste this into a comment or forum post on https://www.nexusmods.com/fallout76/mods/221 to aid in debugging.`n`nOutput log file:`nVersion: " . VersionNumber) ;Should format the top of the log file to aid users.
     Fallout76PrefsIni = %A_MyDocuments%\My Games\Fallout 76\Fallout76Prefs.ini
@@ -107,7 +107,8 @@
     Gui, Add, Text, w120 h20, Developer Tools:
     Gui, Add, Button,gCompileModButton, Compile a mod
     Gui, Add, Button,gOutputDebugButton, Output debug log
-    Gui, Add, Text, x22 y55 w150 h20, Mods:
+    Gui, Add, CheckBox, x65 y55 gToggleAllMods vToggleAllModsCheckbox, Check/Uncheck all mods.
+    Gui, Add, Text, x22 y55 w30 h20, Mods:
 
     ;Look for mods and add them to the GUI
       CurrentModNumber = 0 ;Used to create an array of mods with the corresponding values. eg: Mod2 = glow.ba2 (This is used so when writing the fallout65custom.ini we know which mods are enabled.)
@@ -119,9 +120,15 @@
         ModName%CurrentModNumber% := A_LoopFileName ;Add this mod and its value to the mod array. Eg Mod2 = glow.ba2
         UIFriendlyName := StrSplit(A_LoopFileName,".ba2")
         if ModAlreadyEnabled(A_LoopFileName) ;Default the checkboxes to on/off depending on if they're already enabled in the ini file.
+        {
           Gui, Add, CheckBox, w250 h15 vModStatus%CurrentModNumber% Checked, % UIFriendlyName[1]
+          ModStatus%CurrentModNumber% = 1 ;Without these I can't fetch the value without using a gui,submit in the AllModsAreEnabled() Function.
+        }
         else
+        {
           Gui, Add, CheckBox, w250 h15 vModStatus%CurrentModNumber%, % UIFriendlyName[1]
+          ModStatus%CurrentModNumber% = 0
+        }
         DesiredGUIHeight := DesiredGUIHeight + 17 ;Expand the GUI to fit the current mod in it.
       }
       TotalNumberOfMods := CurrentModNumber ;Used by the save button to determine loop count when saving each mod.
@@ -132,6 +139,16 @@
         else if !(FileExist(ModsFolder . "\SeventySix - Textures01.ba2")) ;Need to check if the folder actually contains mods.
           msgbox,,Error!,No mods were found! Did you pick the correct folder that holds the .ba2 files?`n%ModFolderHelp%
       }
+
+      ;Check/Unchecking functionality
+      If !AllModsAreEnabled()
+        ShouldTickAllMods = 1 ;Makes clicking the "CHeck/Uncheck all mods" button default to checking all when it's first clicked and gets checked. Saves me having to use a gui,submit to read the checked value.
+      Else
+      {
+        GuiControl,,ToggleAllModsCheckbox,1
+        ShouldTickAllMods = 0
+      }
+
 
     ;Show the GUI
       if (DesiredGUIHeight / A_ScreenHeight * 100) >= 75 ;Cap the height from going too tall and off the monitor. Capped it at 75%
@@ -145,11 +162,6 @@
       GroupAdd, MyGui, % "ahk_id " . WinExist()
       OnMessage(0x200, "HoverOverElementHelp")
   return
-
-
-
-
-
 
 
 ;;;;;;;;;;;;;;;;
@@ -209,6 +221,15 @@
         else
           gui,show
           return
+
+      ToggleAllMods:
+        Loop % TotalNumberOfMods
+        If !(ShouldTickAllMods)
+          GuiControl,,ModStatus%A_Index%,0
+        Else
+          GuiControl,,ModStatus%A_Index%,1
+        Toggle(ShouldTickAllMods)
+        return
 
   ;INI Files
     SaveSettingsFile:
@@ -500,25 +521,25 @@
 ;Functions
 ;;;;;;;;;;;;;;;;;;;;;
 
-GetFallout76Ini()
-{
-  global ModsFolder
-  Debug("Attempting to find Fallout76.ini in game folder.")
-  If !(ModsFolder)
+  GetFallout76Ini()
   {
-    Debug("ModsFolder was not defined.")
-    return
+    global ModsFolder
+    Debug("Attempting to find Fallout76.ini in game folder.")
+    If !(ModsFolder)
+    {
+      Debug("ModsFolder was not defined.")
+      return
+    }
+    FO76IniFile := SubStr(ModsFolder,1,-5) . "\Fallout76.ini"
+    IfNotExist,%FO76IniFile%
+    {
+      Debug("Couldn't find the ini file, tried looking here:" . FO76IniFile)
+      msgbox, Fallout76.ini was not found in your Fallout76 folder. You may encounter glitches as a result.`n`n Please use the Bethesda Launcher to verify your game files, then re-launch this mod manager.
+      return
+    }
+    Debug("The default Fallout76ini file was found: " . FO76IniFile)
+    return % FO76IniFile
   }
-  FO76IniFile := SubStr(ModsFolder,1,-5) . "\Fallout76.ini"
-  IfNotExist,%FO76IniFile%
-  {
-    Debug("Couldn't find the ini file, tried looking here:" . FO76IniFile)
-    msgbox, Fallout76.ini was not found in your Fallout76 folder. You may encounter glitches as a result.`n`n Please use the Bethesda Launcher to verify your game files, then re-launch this mod manager.
-    return
-  }
-  Debug("The default Fallout76ini file was found: " . FO76IniFile)
-  return % FO76IniFile
-}
 
 ;Game exe functions
   GetBethesdaLauncherLocation()
@@ -567,6 +588,17 @@ GetFallout76Ini()
         gosub,ReScanForMods
         guicontrol,,StatusText,Successfully installed: %NewlyInstalledMod%
       }
+    }
+
+    AllModsAreEnabled()
+    {
+      Global
+      Loop % TotalNumberOfMods
+      {
+        If ModStatus%A_Index% != 1
+          return false
+      }
+      return true
     }
 
   HoverOverElementHelp(wParam, lParam, Msg)
@@ -805,6 +837,11 @@ GetFallout76Ini()
       global DebugText
       DebugText := DebugText . "`n" . InputString
       return
+    }
+
+    Toggle(ByRef Var)
+    {
+      var:=!var
     }
 
   GetFileFromPossibleLocations(PossibleLocationsArray,GoalFileOrPath)
