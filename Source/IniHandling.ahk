@@ -8,9 +8,9 @@
       return
   }
 
-  EditModManagerIni(Value,Name)
+  EditModManagerIni(Value,Name,Section:="Settings")
     {
-      IniWrite,%Value%,ModManagerPrefs.ini,Settings,%Name%
+      IniWrite,%Value%,ModManagerPrefs.ini,%Section%,%Name%
       return
     }
 
@@ -66,4 +66,9 @@
     IfNotExist,Fallout76CustomIni
     FileCreateDir,% SubStr(Fallout76CustomIni,1,-20)
     return
+  }
+
+  DeleteFromModManagerIni(Section,Key)
+  {
+    IniDelete,ModManagerPrefs.ini,%Section%,%Key%
   }

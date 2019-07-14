@@ -10,7 +10,7 @@
     #NoEnv
     #SingleInstance Force
     #NoTrayIcon
-    VersionNumber = 1.161
+    VersionNumber = 1.2
     AppName = Cloudy01's Fallout 76 Mod Manager Ver %VersionNumber%
     debug("Program not working correctly? Copy-paste this into a comment or forum post on https://www.nexusmods.com/fallout76/mods/221 to aid in debugging.`n`nOutput log file:`nVersion: " . VersionNumber) ;Should format the top of the log file to aid users.
     Fallout76PrefsIni = %A_MyDocuments%\My Games\Fallout 76\Fallout76Prefs.ini
@@ -61,7 +61,18 @@
     OnMessage(0x114, "OnScroll") ; WM_HSCROLL
     Gui, +Resize +0x300000 ; WS_VSCROLL | WS_HSCROLL
 
-
+    ;Install Archive2 (We need it to compile mods.)
+      ModCompilerDir = %A_Temp%\FO76ModMan.temp\ModCompiler
+      ifnotexist,%ModCompilerDir%
+        filecreatedir,%ModCompilerDir%
+      Ifnotexist,%ModCompilerDir%\Archive2.exe
+        Fileinstall,Archive2\Archive2.exe,%ModCompilerDir%\Archive2.exe
+      IfNotExist,%ModCompilerDir%\Archive2Interop.dll
+        Fileinstall,Archive2\Archive2Interop.dll,%ModCompilerDir%\Archive2Interop.dll
+      IfNotExist,%ModCompilerDir%\Microsoft.WindowsAPICodePack.dll
+        Fileinstall,Archive2\Microsoft.WindowsAPICodePack.dll,%ModCompilerDir%\Microsoft.WindowsAPICodePack.dll
+      IfNotExist,%ModCompilerDir%\Microsoft.WindowsAPICodePack.Shell.dll
+        Fileinstall,Archive2\Microsoft.WindowsAPICodePack.Shell.dll,%ModCompilerDir%\Microsoft.WindowsAPICodePack.Shell.dll
 
 ;;;;;;;;;;;;;
 ;GUI
@@ -107,6 +118,8 @@
     Gui, Add, Text, w120 h20, Developer Tools:
     Gui, Add, Button,gCompileModButton, Compile a mod
     Gui, Add, Button,gOutputDebugButton, Output debug log
+    Gui, Add, Text,
+    Gui, Add, Picture, gDonateButton, Donate.png
     Gui, Add, CheckBox, x65 y55 gToggleAllMods vToggleAllModsCheckbox, Check/Uncheck all mods.
     Gui, Add, Text, x22 y55 w30 h20, Mods:
 
@@ -116,6 +129,8 @@
       {
         ifinstring,A_LoopFileName,SeventySix - ;Skip default game files. Only interested in mods.
           continue
+        ifinstring,A_LoopFileName,MM_ ;Skip Mod Manager files
+            continue
         CurrentModNumber ++
         ModName%CurrentModNumber% := A_LoopFileName ;Add this mod and its value to the mod array. Eg Mod2 = glow.ba2
         UIFriendlyName := StrSplit(A_LoopFileName,".ba2")
@@ -208,19 +223,21 @@
         {
           debug("Uninstalling the mod: " . UninstallModName)
           filerecycle,% ModsFolder . "\" . strreplace(A_ThisMenuItem,"Uninstall ")
-          fileread,Temp,%Fallout76CustomIni%
-          ;Immediately remove it from the customini file so the game doesn't try to load a deleted mod.
-            Temp := strreplace(Temp,"," . UninstallModName)
-            Temp := strreplace(Temp,UninstallModName . ",")
-            Temp := strreplace(Temp,UninstallModName)
-          filedelete,%Fallout76CustomIni%
-          fileappend,%Temp%,%Fallout76CustomIni%
+          if ModAlreadyEnabled(UninstallModName)
+          {
+            MsgBox, 4,, For the changes to be applied ingame, the mods will need to be re-combined.`n`nWould you like to do this now?`n`n`n* Note: If you're trying to uninstall multiple mods at once, disable them first in the mod manager then click "Save Settings" to avoid this warning message.
+            IfMsgBox Yes
+            {
+              Gui,Show
+              DeleteFromModManagerIni("Mod Enabled",UninstallModName)
+              gosub SaveCustomIniButton
+            }
+          }
           gosub,SaveTweaksToCustomIni
           goto,ReScanForMods
         }
-        else
-          gui,show
-          return
+        gui,show
+        return
 
       ToggleAllMods:
         Loop % TotalNumberOfMods
@@ -326,52 +343,89 @@
       return
 
     SaveModListToCustomIni:
-      gui,submit,NoHide
-      debug("SaveModListToCustomIni subroutine running.")
-      ;FO76 Needs a list of mods in a comma delimited fasion, and mods in different load orders. With the default files first (or the in-game store doesn't load)
-        ShowStatusText("Detecting which mods go in sResourceStartUpArchiveList",30000)
-        CurrentEnabledModNumber = 1
-        ;Get the default lists from the FO76ini file (They keep changing this, but each time it appears to be in this ini file. So just use that to avoid glitches.)
-          Fallout76Ini := GetFallout76Ini()
-          Iniread,sResourceArchive2List,%Fallout76Ini%,Archive,sResourceArchive2List
-          Iniread,sResourceStartUpArchiveList,%Fallout76Ini%,Archive,sResourceStartUpArchiveList
-          Iniread,sResourceIndexFileList,%Fallout76Ini%,Archive,sResourceIndexFileList
-          if (sResourceArchive2List = "ERROR") or (sResourceStartUpArchiveList = "ERROR") or (sResourceIndexFileList = "ERROR")
-          {
-            Msgbox, There was an error determining the correct load order from the Fallout76.ini file.`nTry verifying the game files in the Bethesda Launcher and try again.
-            ShowStatusText("Changes were not saved due to an error with Fallout76.ini",6000)
-            return
-          }
-        ;sResourceArchive2List := "SeventySix - 00UpdateMain.ba2, SeventySix - 00UpdateStream.ba2, SeventySix - 00UpdateTextures.ba2"
-        ;sResourceStartUpArchiveList := "SeventySix - Interface.ba2, SeventySix - Localization.ba2, SeventySix - Shaders.ba2, SeventySix - Startup.ba2"
-        ;sResourceIndexFileList := "SeventySix - Textures01.ba2, SeventySix - Textures02.ba2, SeventySix - Textures03.ba2, SeventySix - Textures04.ba2, SeventySix - Textures05.ba2, SeventySix - Textures06.ba2"
+        gui,submit,NoHide
+        debug("SaveModListToCustomIni subroutine running.")
+
+        ;Files we'll need to use tomerge mods into each .ba2 file, so the fallout76custom.ini has as little characters as possible.
+          StartupArchiveFileList := A_Temp . "\FO76ModMan.temp\StartupArchiveFileList.txt"
+          Archive2FileList := A_Temp . "\FO76ModMan.temp\Archive2FileList.txt"
+          Archive2TexturesList := A_Temp . "\FO76ModMan.temp\Archive2TextureFileList.txt"
+          FileDelete, %StartupArchiveFileList%
+          FileDelete, %Archive2FileList%
+          FileDelete, %Archive2TexturesList%
+
+        TotalNumberOfActiveMods := 0
         loop %TotalNumberOfMods%
         {
           if ModStatus%A_Index% = 1
+            TotalNumberOfActiveMods ++
+        }
+
+        loop %TotalNumberOfMods%
+        {
+          EditModManagerIni(ModStatus%A_Index%,ModName%A_Index%,"Mod Enabled")
+          if ModStatus%A_Index% = 1
           {
-            if GetModsGoalResourceList(ModName%A_Index%) = "sResourceStartUpArchiveList"
-              sResourceStartUpArchiveList := sResourceStartUpArchiveList . "," . ModName%A_Index%
-            else if GetModsGoalResourceList(ModName%A_Index%) = "sResourceIndexFileList"
-              sResourceIndexFileList := sResourceIndexFileList . "," . ModName%A_Index%
-            else
-              sResourceArchive2List := sResourceArchive2List "," . ModName%A_Index%
+            ModExtractionPath := A_Temp . "\FO76ModMan.temp\Mods\" . ModName%A_Index% . "\Data"
+            ifNotExist,%ModExtractionPath%
+            {
+              ShowStatusText("Extracting " . TotalNumberOfActiveMods . " mods.. Please wait.",30000)
+              ExtractMod(ModName%A_Index%,ModExtractionPath)
+              Debug("Extracting " . ModName%A_Index% . " to " . ModExtractionPath)
+            }
+
+              loop, Files, %ModExtractionPath%\*.*,R
+              {
+                If A_LoopFileExt = txt
+                  continue
+                If Instr(A_LoopFileFullPath,"Textures")
+                  FileAppend,%A_LoopFileFullPath%`n, %Archive2TexturesList%
+                else If InStr(A_LoopFileFullPath,"Strings")
+                  FileAppend,%A_LoopFileFullPath%`n, %StartupArchiveFileList%
+                else
+                  FileAppend,%A_LoopFileFullPath%`n, %Archive2FileList%
+              }
             CurrentEnabledModNumber ++
           }
         }
-        EditCustomIni(sResourceStartUpArchiveList,"sResourceStartUpArchiveList","Archive")
-        EditCustomIni(sResourceIndexFileList,"sResourceIndexFileList","Archive")
-        EditCustomIni(sResourceArchive2List,"sResourceArchive2List","Archive")
+
+        FileDelete,%ModsFolder%\MM_Arc2.ba2
+        FileDelete,%ModsFolder%\MM_StUp.ba2
+        FileDelete,%ModsFolder%\MM_Tex.ba2
+        IfExist, %Archive2FileList%
+        {
+          ShowStatusText("Combining Archive2 mods together... Please wait.",6000)
+          Debug("Combining Archive2 mods together.")
+          CombineMods(Archive2FileList,"MM_Arc2.ba2")
+        }
+        IfExist, %StartupArchiveFileList%
+        {
+          ShowStatusText("Combining Startup mods together... Please wait.",6000)
+          Debug("Combining Startup mods together.")
+          CombineMods(StartupArchiveFileList,"MM_StUp.ba2")
+        }
+        IfExist, %Archive2TexturesList%
+        {
+          ShowStatusText("Combining Texture mods together... Please wait.",6000)
+          Debug("Combining Texture mods together.")
+          CombineMods(Archive2TexturesList,"MM_Tex.ba2","DDS")
+        }
+
+        EditCustomIni("MM_StUp.ba2","sResourceStartUpArchiveList","Archive")
+        EditCustomIni("MM_Arc2.ba2,MM_Tex.ba2","sResourceArchive2List","Archive")
 
       ShowStatusText("Successfully saved. You may now start Fallout 76.",6000)
     return
 
 
 
-
-
 ;;;;;;;;;;;;;;;;;
 ;GUI Buttons
 ;;;;;;;;;;;;;;;;;
+
+  DonateButton:
+  run, https://www.ko-fi.com/xcloudx01
+  return
 
   LaunchGameButton:
     if !(SavedChanges)
@@ -496,16 +550,6 @@
       }
       return
 
-  ;SelectIniFileButton:
-  ;  FileSelectFile,NewFallout76CustomIni,2,,Select your Fallout76Custom.ini file,Fallout76Custom.ini
-  ;  if NewFallout76CustomIni !=
-  ;  {
-  ;      Fallout76Custom := NewFallout76CustomIni
-  ;      GuiControl,,Fallout76CustomIni,%Fallout76CustomIni%
-  ;      gosub,SaveSettingsFile
-  ;  }
-  ;  return
-
   OutputDebugButton:
     FileDelete,%A_Temp%\FO76ModMan.temp\DebugOutput.txt
     ifexist,%Fallout76CustomIni%
@@ -514,15 +558,29 @@
     run,%A_Temp%\FO76ModMan.temp\DebugOutput.txt
     return
 
+  return
+
 
 
 
 ;;;;;;;;;;;;;;;;;;;;;
 ;Functions
 ;;;;;;;;;;;;;;;;;;;;;
+CombineMods(FileList,FileName,Format:="")
+{
+  if (Format)
+    Format := " -format=" . Format
+  global ModsFolder
+  HiddenCommandPrompt("""" A_Temp . "\FO76ModMan.temp\ModCompiler\Archive2.exe"" -s=""" . FileList . """" . Format . " -c=""" . ModsFolder . "\" . FileName)
+}
+
+HiddenCommandPrompt(cmd)
+{
+  runwait,%cmd%,,Hide
+}
 
   GetFallout76Ini()
-  {
+    {
     global ModsFolder
     Debug("Attempting to find Fallout76.ini in game folder.")
     If !(ModsFolder)
@@ -539,7 +597,7 @@
     }
     Debug("The default Fallout76ini file was found: " . FO76IniFile)
     return % FO76IniFile
-  }
+    }
 
 ;Game exe functions
   GetBethesdaLauncherLocation()
@@ -628,6 +686,8 @@
         	Help := "The game reads up/down mouse movement at a different speed than left/right movement, which can throw off your aim.`nChecking this makes mouse movement consistent.`n`n*Your mouse movement may be increased too much whilst standing still, but works fine while you're moving."
         else IfEqual, OutputVarControl, Button11
         	Help := "The faster you move your mouse, the further your aim goes.`nPersonal preference if you like this on or off."
+        else IfEqual, OutputVarControl, Static11
+          DllCall("SetCursor","UInt",DllCall("LoadCursor","UInt",NULL,"Int",32649,"UInt")) ;Change to hand icon
       tooltip % Help
       ;tooltip % OutputVarControl ; Debug
     }
@@ -753,47 +813,19 @@
       }
 
 ;Mod Management
-  GetModsGoalResourceList(TheMod)
+
+  ExtractMod(TheMod,ModExtractionPath)
     {
-      global ModsFolder
-
-      ;We should re-scan existing mods if the mod was updated (In-case it needs a changed load order)
-        if HasBeenModified(TheMod)
-          filedelete,%A_Temp%\FO76ModMan.temp\%TheMod%.txt
-        if !(fileHasContent(A_Temp . "\FO76ModMan.temp\" . TheMod . ".txt"))
-          filedelete,%A_Temp%\FO76ModMan.temp\%TheMod%.txt
-
-      ;We need to dump the contents of the mod so we can scan what files it contains, then sort accordingly
-        ifnotexist,%A_Temp%\FO76ModMan.temp\%TheMod%.txt
-        {
-          cmd := """" . A_Temp . "\FO76ModMan.temp\bsab.exe"" /l """ . ModsFolder . "\" . TheMod . """" ;This mess is because the command must be literal: bsab.exe "C:\PATH-TO-FILE\TheMod.ba2" to work.
-          debug("Running the following windows command: " . cmd)
-          ListOfFiles := ComObjCreate("WScript.Shell").Exec(cmd).StdOut.ReadAll()
-          FileAppend,%ListOfFiles%,%A_Temp%\FO76ModMan.temp\%TheMod%.txt
-        }
-        else
-          fileread,ListOfFiles,%A_Temp%\FO76ModMan.temp\%TheMod%.txt
-
-      ;Determine the correct folder. Certain types of mods need to be in specific load orders, because FO76 just works in funky ways.
-        ;Commented out because Bag and BagGlow weren't working when in sResourceIndexFileList. I checked Nexusmods and I can't seem to see any mods that even need to be in this list?
-          ;  if InStr(ListOfFiles,"model") or InStr(ListOfFiles,"texture") or InStr(ListOfFiles,"sfx")
-          ;    return "sResourceIndexFileList"
-          ;  else if InStr(ListOfFiles,"interface") or InStr(ListOfFiles,"strings") or InStr(ListOfFiles,"music")
-          ;if InStr(ListOfFiles,"interface") or InStr(ListOfFiles,"strings") or InStr(ListOfFiles,"music")
-            ;return "sResourceStartUpArchiveList"
-        Loop, read, %A_Temp%\FO76ModMan.temp\%TheMod%.txt, %A_Temp%\FO76ModMan.temp\%TheMod%.txt
-        {
-          if (A_LoopReadLine) ;If this line isn't blank
-          {
-            RootFolder := StrReplace(A_LoopReadLine,"\","/") ;bsab sometimes makes paths with slashes the wrong way around. They need to be the right way around so strsplit works.
-            RootFolder := StrSplit(RootFolder,"/")
-            ;if (RootFolder[1] = "interface" or RootFolder[1] = "strings" or RootFolder[1] = "music")
-            if (RootFolder[1] = "strings")
-             return "sResourceStartUpArchiveList"
-          }
-          else
-            return "sResourceArchive2List"
-        }
+    global ModsFolder
+      ifnotexist,%ModExtractionPath%
+        FileCreateDir,%ModExtractionPath%
+      else
+      {
+        FileRecycle,%ModExtractionPath%
+        FileCreateDir,%ModExtractionPath%
+      }
+      HiddenCommandPrompt("""" . A_Temp . "\FO76ModMan.temp\bsab.exe"" /e """ . ModsFolder . "\" . TheMod . """" . " """ . ModExtractionPath . """")
+    return
     }
 
   fileHasContent(TheFile)
@@ -823,12 +855,8 @@
 
   ModAlreadyEnabled(Query)
     {
-      global sResourceArchive2List
-      global sResourceStartUpArchiveList
-      global sResourceIndexFileList
-      CombinedModsArray := sResourceArchive2List . "," . sResourceStartUpArchiveList . "," . sResourceIndexFileList
-      EnabledModsArray := StrSplit(CombinedModsArray,",")  ;This needs to be an array instead of just contains because otherwise "BagGlow" and "Glow" would both return true.
-      return ArrayContainsValue(EnabledModsArray,Query)
+      Iniread, Value,ModManagerPrefs.ini,Mod Enabled,%Query%
+      return Value
     }
 
 ;Utility

@@ -143,11 +143,6 @@ InstallMod(ModFileFullPath)
         ModCompilerDir = %A_Temp%\FO76ModMan.temp\ModCompiler
         ifnotexist,%ModCompilerDir%
           filecreatedir,%ModCompilerDir%
-      ;Install the Archive2 tool (We need to use this to compile mods)
-        Fileinstall,Archive2\Archive2.exe,%ModCompilerDir%\Archive2.exe
-        Fileinstall,Archive2\Archive2Interop.dll,%ModCompilerDir%\Archive2Interop.dll
-        Fileinstall,Archive2\Microsoft.WindowsAPICodePack.dll,%ModCompilerDir%\Microsoft.WindowsAPICodePack.dll
-        Fileinstall,Archive2\Microsoft.WindowsAPICodePack.Shell.dll,%ModCompilerDir%\Microsoft.WindowsAPICodePack.Shell.dll
 
       ;Make sure the folder is actually the root folder for a mod. Archive2 needs to know the root folder so it can scan subdirs for files.
         loop,% ValidModTypes.Length()
@@ -185,8 +180,7 @@ InstallMod(ModFileFullPath)
             fileappend,%A_LoopFileFullPath%`n,%ModCompilerDir%\ModFileList.txt
         }
         debug("CompileMod - Attempting compile of: " . LooseFilesFolder)
-        cmd := ModCompilerDir . "\Archive2.exe -s=""" . ModCompilerDir . "\ModFileList.txt"" -c=""" . ModsFolder . "\" . ModName . ".ba2"""
-        runwait,%cmd%
+        HiddenCommandPrompt(ModCompilerDir . "\Archive2.exe -s=""" . ModCompilerDir . "\ModFileList.txt"" -c=""" . ModsFolder . "\" . ModName . ".ba2""")
         ifexist,%ModsFolder%\%ModName%.ba2
         {
           debug("CompileMod - The mod successfully compiled!")
@@ -243,9 +237,8 @@ InstallMod(ModFileFullPath)
           ExtractionType = x
         }
         debug("UnzipFile - Attempting unzip of: " . ZipFileFullPath . "  TO:  " . DestinationFullPath)
-        cmd := A_Temp . "\FO76ModMan.temp\7z.exe " . ExtractionType . " """ . ZipFileFullPath . """ -o""" . DestinationFullPath . """ -y"
+        HiddenCommandPrompt(A_Temp . "\FO76ModMan.temp\7z.exe " . ExtractionType . " """ . ZipFileFullPath . """ -o""" . DestinationFullPath . """ -y")
         ShowStatusText("Unzipping file..",6000)
-        runwait, %cmd%
         while,!FileExist(DestinationFullPath)
         {
           ShowStatusText("Double-checking zip extracted correctly..",500)
@@ -296,4 +289,17 @@ InstallMod(ModFileFullPath)
   {
     FileFullPathArray := StrSplit(FileFullPath,"\")
     return FileFullPathArray[FileFullPathArray.length()] ;The last entry in the array is the filename when split by \
+  }
+
+  InstallArchive2()
+  {
+    Global ModCompilerDir
+    Ifnotexist,%ModCompilerDir%\Archive2.exe
+      Fileinstall,Archive2\Archive2.exe,%ModCompilerDir%\Archive2.exe
+    IfNotExist,%ModCompilerDir%\Archive2Interop.dll
+      Fileinstall,Archive2\Archive2Interop.dll,%ModCompilerDir%\Archive2Interop.dll
+    IfNotExist,%ModCompilerDir%\Microsoft.WindowsAPICodePack.dll
+      Fileinstall,Archive2\Microsoft.WindowsAPICodePack.dll,%ModCompilerDir%\Microsoft.WindowsAPICodePack.dll
+    IfNotExist,%ModCompilerDir%\Microsoft.WindowsAPICodePack.Shell.dll
+      Fileinstall,Archive2\Microsoft.WindowsAPICodePack.Shell.dll,%ModCompilerDir%\Microsoft.WindowsAPICodePack.Shell.dll
   }
