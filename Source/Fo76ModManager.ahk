@@ -16,7 +16,7 @@
     #NoEnv
     #SingleInstance Force
     #NoTrayIcon
-    VersionNumber = 1.21 (beta)
+    VersionNumber = 1.211 (beta)
     AppName = Cloudy01's Fallout 76 Mod Manager Ver %VersionNumber%
     debug("Program not working correctly? Copy-paste this into a comment or forum post on https://www.nexusmods.com/fallout76/mods/221 to aid in debugging.`n`nOutput log file:`nVersion: " . VersionNumber) ;Should format the top of the log file to aid users.
     Fallout76PrefsIni = %A_MyDocuments%\My Games\Fallout 76\Fallout76Prefs.ini
@@ -82,12 +82,15 @@
     IfNotExist,%ModCompilerDir%\Microsoft.WindowsAPICodePack.Shell.dll
       Fileinstall,Archive2\Microsoft.WindowsAPICodePack.Shell.dll,%ModCompilerDir%\Microsoft.WindowsAPICodePack.Shell.dll
 
+  Gosub,RenameNWFiles ;Just to make sure the user has renamed ALL their files properly before we begin.
+
   OpenGoalGUI:
     If (NWMode)
       Gosub,MakeNWGUI
     Else
       Gosub,CreateGUI
     return ;Stop auto-doing stuff.
+  return
 
 
 
@@ -586,26 +589,30 @@
     return
 
   ToggleNWButton:
+    Gosub,RenameNWFiles ;It's seperate so if the user only renamed a few of their mods, we can auto-fix it for them.
     Debug("NW Toggle button pushed")
-    for each, File in NWFiles
-    {
-      If !(NWMode)
-      {
-        FileMove,%File%,%File%.disabled,1
-        Debug("Disabling " . File)
-      }
-      Else
-      {
-        FileMove,%File%.disabled,%File%,1
-        Debug("Re-enabling " . File)
-      }
-    }
     Toggle(NWMode)
     ;Reopen GUI
       Gui,destroy ;The GUIs need to be gone so we can re-create them from scratch without errors.
       Gui, NWGUI:Destroy
       gosub,OpenGoalGUI
     return
+
+  RenameNWFiles:
+  for each, File in NWFiles
+  {
+    If !(NWMode)
+    {
+      FileMove,%File%,%File%.disabled,1
+      Debug("Disabling " . File)
+    }
+    Else
+    {
+      FileMove,%File%.disabled,%File%,1
+      Debug("Re-enabling " . File)
+    }
+  }
+  return
 
 
 ;;;;;;;;;;;;;;;;;;;;;
