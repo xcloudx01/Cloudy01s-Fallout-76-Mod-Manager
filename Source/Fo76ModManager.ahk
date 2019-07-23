@@ -1,11 +1,11 @@
 ;Includes
   #include InstallMods.ahk
   #Include IniHandling.ahk
+  #Include Utility.ahk
 
 ;;;;;;;;;;;;;;;;;;;;;;
 ;Pre-run
 ;;;;;;;;;;;;;;;;;;;;;;
-{
   ; Temp files
     ifnotexist,%A_Temp%\FO76ModMan.temp
       filecreatedir,%A_Temp%\FO76ModMan.temp
@@ -20,6 +20,7 @@
     AppName = Cloudy01's Fallout 76 Mod Manager Ver %VersionNumber%
     debug("Program not working correctly? Copy-paste this into a comment or forum post on https://www.nexusmods.com/fallout76/mods/221 to aid in debugging.`n`nOutput log file:`nVersion: " . VersionNumber) ;Should format the top of the log file to aid users.
     Fallout76PrefsIni = %A_MyDocuments%\My Games\Fallout 76\Fallout76Prefs.ini
+
 
   ; Help info that appears in multiple places.
     ModFolderHelp = This should be the data folder in Fallout76`n`nEg: C:\Program Files (x86)\Bethesda.net Launcher\Games\Fallout76\Data
@@ -53,6 +54,11 @@
     else
       gosub,LoadSettingsFile
 
+  ;Setup NW (Nuclear Winter) mode button.
+    GameRootPath := GetGameRootPath()
+    NWFiles := [Fallout76CustomIni, GameRootPath . "\x3daudio1_7.dll", GameRootPath . "\dxgi.dll", GameRootPath . "\d3d11.dll"] ;This is also used later for toggling these files on/off.
+    NWMode := FileExist(Fallout76CustomIni . ".disabled") ;Need to know if NW mode is already on to adjust the GUI to match this state.
+
   ; Get the list of currently enabled mods. The GUI needs this to default mods to on/off
     Iniread,sResourceArchive2List,%Fallout76CustomIni%,Archive,sResourceArchive2List
     Iniread,sResourceStartUpArchiveList,%Fallout76CustomIni%,Archive,sResourceStartUpArchiveList
@@ -75,15 +81,24 @@
       Fileinstall,Archive2\Microsoft.WindowsAPICodePack.dll,%ModCompilerDir%\Microsoft.WindowsAPICodePack.dll
     IfNotExist,%ModCompilerDir%\Microsoft.WindowsAPICodePack.Shell.dll
       Fileinstall,Archive2\Microsoft.WindowsAPICodePack.Shell.dll,%ModCompilerDir%\Microsoft.WindowsAPICodePack.Shell.dll
-}
+
+  OpenGoalGUI:
+    If (NWMode)
+      Gosub,MakeNWGUI
+    Else
+      Gosub,CreateGUI
+    return ;Stop auto-doing stuff.
+
+
+
+
 
 ;;;;;;;;;;;;;
 ;GUI
 ;;;;;;;;;;;;;
   CreateGUI:
     debug("Making GUI..")
-    ;TODO: Make sure donate button not cut off.
-    DesiredGUIHeight = 205 ;Default height if zero mods are found. Height is added later on on a per mod found basis.
+    DesiredGUIHeight = 240 ;Default height if zero mods are found. Height is added later on on a per mod found basis.
 
     ;We should find which settings need to be pre-filled on the GUI if they have saved settings for these already defined.
       IntroCheckbox := DefaultGUICheckedStatus(Fallout76CustomIni,"General","sIntroSequence",1) ;These need to be either blank or "Checked" in AHK Language so the GUI can create them accordingly.
@@ -103,6 +118,7 @@
     Gui, Add, Text, w1 h1 x340 y55,
     Gui, Add, Button,gInstallModButton, Install a mod
     Gui, Add, Button,gSaveCustomIniButton, Save Settings
+    Gui, Add, Button,gToggleNWButton, Enable Nuclear Winter Mode
     Gui, Add, Button,gLaunchGameButton, Launch Fallout 76!
     Gui, Add, Text, w1 h1, ;vertical padding
     Gui, Add, Text, w150 h20, Graphics Tweaks:
@@ -177,14 +193,33 @@
       Gui, +LastFound
       GroupAdd, MyGui, % "ahk_id " . WinExist()
       OnMessage(0x200, "HoverOverElementHelp")
-  return
+      return
+
+  MakeNWGUI:
+    debug("Making NW GUI..")
+    Gui, NWGUI:font, Bold
+    Gui, NWGUI:Add, Text, x20 y34 w450 h20 vStatusText
+    Gui, NWGUI:font, Bold s15
+    Gui, NWGUI:Add, Text, x110 y10 w450, Nuclear Winter mode is active
+    Gui, NWGUI:font,
+    Gui, NWGUI:Add, Text, w1 h1 x340 y55,
+    Gui, NWGUI:Add, Button,gLaunchGameButton, Launch Fallout 76!
+    Gui, NWGUI:Add, Button,gToggleNWButton, Disable Nuclear Winter Mode
+    Gui, NWGUI:Add, Text, w120 h20, Developer Tools:
+    Gui, NWGUI:Add, Button,gCompileModButton, Compile a mod
+    Gui, NWGUI:Add, Button,gOutputDebugButton, Output debug log
+    Gui, NWGUI:Add, Text,
+    Gui, NWGUI:Add, Picture, gDonateButton, %A_Temp%\FO76ModMan.temp\Donate.png
+    Gui, NWGUI:Show,  W510,%AppName%
+    return
+
 
 
 ;;;;;;;;;;;;;;;;
 ;Subroutines
 ;;;;;;;;;;;;;;;;
 
-  ;GUI
+  ;GUI Subroutines
     GuiSize:
       UpdateScrollBars(A_Gui, A_GuiWidth * 1.5, A_GuiHeight)
       return
@@ -250,7 +285,7 @@
         }
         return
 
-  ;INI Files
+  ;INI Files Subroutines
     SaveSettingsFile:
       if (BethesdaLauncherExeFile) ;Only should save values that exist. BethesdaLauncherExeFile can be false if the function GetBethesdaLauncherLocation() didn't find where the exe is.
         EditModManagerIni(BethesdaLauncherExeFile,"BethesdaLauncherExeFile")
@@ -258,7 +293,7 @@
         EditModManagerIni(ModsFolder,"ModsFolder")
       if (Fallout76CustomIni)
         EditModManagerIni(Fallout76CustomIni,"Fallout76CustomIni")
-    return
+        return
 
     LoadSettingsFile:
       debug("LoadSettingsFile sub-routine starting")
@@ -268,7 +303,7 @@
         Fallout76CustomIni := LoadModManagerIni("Fallout76CustomIni")
         BethesdaLauncherExeFile := LoadModManagerIni("BethesdaLauncherExeFile") ;If it's not found, it'll just be blank. So we can use "if BethesdaLauncherExeFile = false" statements if we want.
       }
-    return
+      return
 
     SaveTweaksToCustomIni: ;This is two seperate functions so when deleting a mod we can just save the currently checked tweaks without having to re-scan for mod changes.
       debug("SaveTweaksToCustomIni sub-routine starting")
@@ -350,25 +385,20 @@
           FileDelete, %Archive2FileList%
           FileDelete, %Archive2TexturesList%
 
-        TotalNumberOfActiveMods := 0
-        loop % TotalNumberOfMods ;So the GUI can show how many mods there are in total to compile.
-        {
-          if ModStatus%A_Index% = 1
-            TotalNumberOfActiveMods ++
-        }
-
         loop % TotalNumberOfMods
         {
           EditModManagerIni(ModStatus%A_Index%,ModName%A_Index%,"Mod Enabled") ;So the settings file can keep track of what mod is enabled.
           if ModStatus%A_Index% = 1
           {
             ModExtractionPath := A_Temp . "\FO76ModMan.temp\Mods\" . ModName%A_Index% . "\Data"
-            ifNotExist,%ModExtractionPath%
+            if !FileExist(ModExtractionPath) || if HasBeenModified(ModName%A_Index%)
             {
-              ShowStatusText("Extracting " . TotalNumberOfActiveMods . " mods.. Please wait.",30000)
+              ShowStatusText("Extracting mods.. Please wait.",30000)
               ExtractMod(ModName%A_Index%,ModExtractionPath)
               Debug("Extracting " . ModName%A_Index% . " to " . ModExtractionPath)
             }
+            if HasBeenModified(ModName%A_Index%)
+              FileDelete,%ModExtractionPath% ;Folder needs to be empty, just incase mod files were deleted between versions.
 
               loop, Files, %ModExtractionPath%\*.*,R
               {
@@ -411,7 +441,9 @@
         EditCustomIni("MM_Arc2.ba2,MM_Tex.ba2","sResourceArchive2List","Archive")
 
       ShowStatusText("Successfully saved. You may now start Fallout 76.",6000)
-    return
+      return
+
+
 
 
 
@@ -420,11 +452,11 @@
 ;;;;;;;;;;;;;;;;;
 
   DonateButton:
-  run, https://www.ko-fi.com/xcloudx01
-  return
+    run, https://www.ko-fi.com/xcloudx01
+    return
 
   LaunchGameButton:
-    if !(SavedChanges)
+    if !(NWMOde) && !(SavedChanges)
     {
       msgbox,3,Notice,No changes were saved.`n`nWould you like to save your settings before launching the game?
       ifmsgbox yes
@@ -486,65 +518,64 @@
     gosub,SaveModListToCustomIni
     return
 
-  ;Mod Management
-    InstallModButton:
-      debug("InstallModButton sub-routine starting.")
-      FileSelectFile,SelectedFilesToInstall,M3,,Please select a .ba2 mod file`,or a zipped mod containing either a .ba2 file or a loose-files mod.,Mods (*.ba2;*.zip;*.7z;*.rar)
-      if (SelectedFilesToInstall)
+  InstallModButton:
+    debug("InstallModButton sub-routine starting.")
+    FileSelectFile,SelectedFilesToInstall,M3,,Please select a .ba2 mod file`,or a zipped mod containing either a .ba2 file or a loose-files mod.,Mods (*.ba2;*.zip;*.7z;*.rar)
+    if (SelectedFilesToInstall)
+    {
+      SelectedModsArray := strsplit(SelectedFilesToInstall,"`n")
+      loop % SelectedModsArray.length()
+      if A_Index = 1
+        continue
+      else
       {
-        SelectedModsArray := strsplit(SelectedFilesToInstall,"`n")
-        loop % SelectedModsArray.length()
-        if A_Index = 1
-          continue
+        FileToInstall := SelectedModsArray[1] . "\" . SelectedModsArray[A_Index]
+        NewlyInstalledMod := InstallMod(FileToInstall)
+        if (NewlyInstalledMod) ;A mod succeeded so the GUI needs to be updated to reflect the change.
+          ShouldUpdateGUI = 1
+      }
+      if ShouldUpdateGUI ;GUI needs to be updated to show the new mod if it was installed successfully.
+      {
+        gosub,ReScanForMods
+        guicontrol,,StatusText,Successfully installed: %NewlyInstalledMod%
+      }
+    }
+    return
+
+  CompileModButton:
+    msgbox,,Help Info,Please select the ROOT folder that contains all the mod's files and folders.
+    fileselectfolder,SelectedModToCompileFolder,1,,Please select the ROOT folder that contains all the mods files and folders.
+    if (SelectedModToCompileFolder)
+    {
+      InputBox, ChosenModName, Mod Name,Please enter a name to call this mod.`n`nYour mod will be saved to the following folder:`n%ModsFolder%, , 450, 200
+      if (ChosenModName)
+      {
+        ifexist,%ModsFolder%\%ChosenModName%.ba2
+        {
+          msgbox,4,Conflicting Mod,A mod called "%ChosenModName%" already exists. Did you want to overwrite it?
+          ifmsgbox yes
+            CompileMod(SelectedModToCompileFolder,ChosenModName) ;No need to re-create the GUI because there won't be anything new to add to it..
+        }
         else
         {
-          FileToInstall := SelectedModsArray[1] . "\" . SelectedModsArray[A_Index]
-          NewlyInstalledMod := InstallMod(FileToInstall)
-          if (NewlyInstalledMod) ;A mod succeeded so the GUI needs to be updated to reflect the change.
-            ShouldUpdateGUI = 1
-        }
-        if ShouldUpdateGUI ;GUI needs to be updated to show the new mod if it was installed successfully.
-        {
+          CompileMod(SelectedModToCompileFolder,ChosenModName)
           gosub,ReScanForMods
-          guicontrol,,StatusText,Successfully installed: %NewlyInstalledMod%
         }
       }
-      return
+    }
+    return
 
-    CompileModButton:
-      msgbox,,Help Info,Please select the ROOT folder that contains all the mod's files and folders.
-      fileselectfolder,SelectedModToCompileFolder,1,,Please select the ROOT folder that contains all the mods files and folders.
-      if (SelectedModToCompileFolder)
-      {
-        InputBox, ChosenModName, Mod Name,Please enter a name to call this mod.`n`nYour mod will be saved to the following folder:`n%ModsFolder%, , 450, 200
-        if (ChosenModName)
-        {
-          ifexist,%ModsFolder%\%ChosenModName%.ba2
-          {
-            msgbox,4,Conflicting Mod,A mod called "%ChosenModName%" already exists. Did you want to overwrite it?
-            ifmsgbox yes
-              CompileMod(SelectedModToCompileFolder,ChosenModName) ;No need to re-create the GUI because there won't be anything new to add to it..
-          }
-          else
-          {
-            CompileMod(SelectedModToCompileFolder,ChosenModName)
-            gosub,ReScanForMods
-          }
-        }
-      }
-      return
-
-    SelectModFolderButton:
-      debug("SelectModFolderButton sub-routine starting")
-      FileSelectFolder,NewModsFolder,,2
-      if NewModsFolder !=
-      {
-        ModsFolder := NewModsFolder
-        GuiControl,,ModsFolder,%ModsFolder%
-        gosub,SaveSettingsFile
-        gosub,ReScanForMods ;We need to re-scan for mods because the user defined a new mod folder.
-      }
-      return
+  SelectModFolderButton:
+    debug("SelectModFolderButton sub-routine starting")
+    FileSelectFolder,NewModsFolder,,2
+    if NewModsFolder !=
+    {
+      ModsFolder := NewModsFolder
+      GuiControl,,ModsFolder,%ModsFolder%
+      gosub,SaveSettingsFile
+      gosub,ReScanForMods ;We need to re-scan for mods because the user defined a new mod folder.
+    }
+    return
 
   OutputDebugButton:
     FileDelete,%A_Temp%\FO76ModMan.temp\DebugOutput.txt
@@ -554,85 +585,34 @@
     run,%A_Temp%\FO76ModMan.temp\DebugOutput.txt
     return
 
-  return
-
-
+  ToggleNWButton:
+    Debug("NW Toggle button pushed")
+    for each, File in NWFiles
+    {
+      If !(NWMode)
+      {
+        FileMove,%File%,%File%.disabled,1
+        Debug("Disabling " . File)
+      }
+      Else
+      {
+        FileMove,%File%.disabled,%File%,1
+        Debug("Re-enabling " . File)
+      }
+    }
+    Toggle(NWMode)
+    ;Reopen GUI
+      Gui,destroy ;The GUIs need to be gone so we can re-create them from scratch without errors.
+      Gui, NWGUI:Destroy
+      gosub,OpenGoalGUI
+    return
 
 
 ;;;;;;;;;;;;;;;;;;;;;
 ;Functions
 ;;;;;;;;;;;;;;;;;;;;;
-CombineMods(FileList,FileName,Format:="")
-{
-  if (Format)
-    Format := " -format=" . Format
-  global ModsFolder
-  HiddenCommandPrompt("""" A_Temp . "\FO76ModMan.temp\ModCompiler\Archive2.exe"" -s=""" . FileList . """" . Format . " -c=""" . ModsFolder . "\" . FileName)
-}
 
-HiddenCommandPrompt(cmd)
-{
-  runwait,%cmd%,,Hide
-}
-
-  GetFallout76Ini()
-    {
-    global ModsFolder
-    Debug("Attempting to find Fallout76.ini in game folder.")
-    If !(ModsFolder)
-    {
-      Debug("ModsFolder was not defined.")
-      return
-    }
-    FO76IniFile := SubStr(ModsFolder,1,-5) . "\Fallout76.ini"
-    IfNotExist,%FO76IniFile%
-    {
-      Debug("Couldn't find the ini file, tried looking here:" . FO76IniFile)
-      msgbox, Fallout76.ini was not found in your Fallout76 folder. You may encounter glitches as a result.`n`n Please use the Bethesda Launcher to verify your game files, then re-launch this mod manager.
-      return
-    }
-    Debug("The default Fallout76ini file was found: " . FO76IniFile)
-    return % FO76IniFile
-    }
-
-;Game exe functions
-  GetBethesdaLauncherLocation()
-    {
-      global ModsFolder
-      LauncherExeFile := "BethesdaNetLauncher.exe"
-      if (ModsFolder) ;Launcher is likely 2-steps above the data folder. So we should check there.
-      {
-        ModsFolderArray := strsplit(ModsFolder,"\")
-        Loop % ModsFolderArray.length() - 3 ;Want the root folder to check for bethesda launcher
-        {
-          if A_Index = 1
-            GameParentFolder := ModsFolderArray[A_Index]
-          else
-            GameParentFolder := GameParentFolder . "\" . ModsFolderArray[A_Index]
-        }
-      }
-      LauncherLocation := GetFileFromPossibleLocations([GameParentFolder,"Program Files (x86)\Bethesda.net Launcher","Program Files\Bethesda.net Launcher","Games\Bethesda.net Launcher"], LauncherExeFile)
-      if !(LauncherLocation)
-        return
-      else
-        return % LauncherLocation
-    }
-
-  GetGameExePath()
-    {
-      global ModsFolder
-      ModsFolderArray := strsplit(ModsFolder,"\")
-      loop % ModsFolderArray.Length() - 1
-      {
-        if A_Index = 1
-          GameExePath := ModsFolderArray[A_Index]
-        else
-          GameExePath := GameExePath . "\" . ModsFolderArray[A_Index]
-      }
-      return GameExePath . "\Fallout76.exe"
-    }
-
-;GUI
+;GUI Functions
   GuiDropFiles(GuiHwnd, FileArray, CtrlHwnd, X, Y)
     {
       for i, file in FileArray
@@ -666,21 +646,23 @@ HiddenCommandPrompt(cmd)
         ;    Help := "This is where your Fallout76Custom.ini is stored. Typically in your 'My documents folder\My Games\Fallout 76'`n`nEg: C:\Users\USERNAME\Documents\My Games\Fallout 76`n`nIf you don't have a Fallout76Custom.ini file, when you click 'Save settings' we'll create one for you."
 
       ;Tweaks
+        else IfEqual, OutputVarControl, Button4
+        Help := "Disables all mods and custom DLLs so you can play NW mode"
         ;else IfEqual, OutputVarControl, Button3
           ;Help := "Mods are currently set to load in alphabetical/numerical order.`nIf this causes issues, rename the mod you want to have higher priority to have a 1 infront of it.`n`nEg: PerkLoadoutManager > 1PerkLoadoutManager`n`nThis will be made automatic in a future update, but for now this is a work-around."
-        else IfEqual, OutputVarControl, Button5
-        	Help := "Unchecking this will make the game start up instantly, without having to watch the Bethesda logo movie."
         else IfEqual, OutputVarControl, Button6
-        	Help := "Unchecking this will disable any motion blur.`n`n(May improve FPS)"
+        	Help := "Unchecking this will make the game start up instantly, without having to watch the Bethesda logo movie."
         else IfEqual, OutputVarControl, Button7
-        	Help := "Unchecking this disables all depth of field effects.`n`n(Will improve FPS)"
+        	Help := "Unchecking this will disable any motion blur.`n`n(May improve FPS)"
         else IfEqual, OutputVarControl, Button8
-        	Help := "Unchecking this allows the FPS to run as high as possible.`n(Improves FPS on powerful machines. Improves input lag)`n`n*Leave this checked if you experience screen tearing"
+        	Help := "Unchecking this disables all depth of field effects.`n`n(Will improve FPS)"
         else IfEqual, OutputVarControl, Button9
-          Help := "Unchecking this will remove the grass ingame.`n`n(Improves FPS, may improve visibility)"
+        	Help := "Unchecking this allows the FPS to run as high as possible.`n(Improves FPS on powerful machines. Improves input lag)`n`n*Leave this checked if you experience screen tearing"
         else IfEqual, OutputVarControl, Button10
-        	Help := "The game reads up/down mouse movement at a different speed than left/right movement, which can throw off your aim.`nChecking this makes mouse movement consistent.`n`n*Your mouse movement may be increased too much whilst standing still, but works fine while you're moving."
+          Help := "Unchecking this will remove the grass ingame.`n`n(Improves FPS, may improve visibility)"
         else IfEqual, OutputVarControl, Button11
+        	Help := "The game reads up/down mouse movement at a different speed than left/right movement, which can throw off your aim.`nChecking this makes mouse movement consistent.`n`n*Your mouse movement may be increased too much whilst standing still, but works fine while you're moving."
+        else IfEqual, OutputVarControl, Button12
         	Help := "The faster you move your mouse, the further your aim goes.`nPersonal preference if you like this on or off."
         else IfEqual, OutputVarControl, Static11
           DllCall("SetCursor","UInt",DllCall("LoadCursor","UInt",NULL,"Int",32649,"UInt")) ;Change to hand icon
@@ -698,7 +680,6 @@ HiddenCommandPrompt(cmd)
       OnScroll(InStr(A_ThisHotkey,"Down") ? 1 : 0, 0, GetKeyState("Shift") ? 0x114 : 0x115, WinExist())
       return
     #IfWinActive
-
     UpdateScrollBars(GuiNum, GuiWidth, GuiHeight)
       {
         static SIF_RANGE=0x1, SIF_PAGE=0x2, SIF_DISABLENOSCROLL=0x8, SB_HORZ=0, SB_VERT=1
@@ -807,126 +788,3 @@ HiddenCommandPrompt(cmd)
         NumPut(new_pos, si, 20, "int") ; nPos
         DllCall("SetScrollInfo", "ptr", hwnd, "int", bar, "ptr", &si, "int", 1)
       }
-
-;Mod Management
-
-  ExtractMod(TheMod,ModExtractionPath)
-    {
-    global ModsFolder
-      ifnotexist,%ModExtractionPath%
-        FileCreateDir,%ModExtractionPath%
-      else
-      {
-        FileRecycle,%ModExtractionPath%
-        FileCreateDir,%ModExtractionPath%
-      }
-      HiddenCommandPrompt("""" . A_Temp . "\FO76ModMan.temp\bsab.exe"" /e """ . ModsFolder . "\" . TheMod . """" . " """ . ModExtractionPath . """")
-    return
-    }
-
-  fileHasContent(TheFile)
-    {
-      fileread,FileContents,%TheFile%
-      if !(FileContents)
-        return false
-      else
-        return true
-    }
-
-  HasBeenModified(TheMod)
-    {
-      global ModsFolder
-
-      FileGetTime,CurrentModifiedDate,%ModsFolder%\%TheMod%
-      Iniread,OldModifiedDate,%A_Temp%\FO76ModMan.temp\ModModifiedDateDatabase.ini,ModifiedDates,%TheMod%
-
-      if CurrentModifiedDate = %OldModifiedDate%
-        return false
-      else
-      {
-        IniWrite,%CurrentModifiedDate%,%A_Temp%\FO76ModMan.temp\ModModifiedDateDatabase.ini,ModifiedDates,%TheMod%
-        return true
-      }
-    }
-
-  ModAlreadyEnabled(Query)
-    {
-      Iniread, Value,ModManagerPrefs.ini,Mod Enabled,%Query%
-      return Value
-    }
-
-;Utility
-  Debug(InputString)
-    {
-      global DebugText
-      DebugText := DebugText . "`n" . InputString
-      return
-    }
-
-    Toggle(ByRef Var)
-    {
-      var:=!var
-    }
-
-  GetFileFromPossibleLocations(PossibleLocationsArray,GoalFileOrPath)
-    {
-      ;Scan exact paths first. eg C:\Folder\SubFolder
-        loop % PossibleLocationsArray.Length()
-          if instr(PossibleLocationsArray[A_Index],":\")
-          {
-            FileFolderOfInterest := PossibleLocationsArray[A_Index] . "\" . GoalFileOrPath
-            if FileExist(FileFolderOfInterest)
-              return FileFolderOfInterest
-          }
-
-      ;Scan all drives
-        DriveGet,DriveLetters,List
-        DriveLettersArray := StrSplit(DriveLetters)
-        loop % DriveLettersArray.Length()
-        {
-          CurrentDrive := DriveLettersArray[A_Index]
-          loop % PossibleLocationsArray.Length()
-          {
-            if !PossibleLocationsArray[A_Index] ;This is needed because we can pass a variable into the array. But if that variable was blank, we can skip scanning it.
-              continue
-            FileFolderOfInterest := CurrentDrive . ":\" . PossibleLocationsArray[A_Index] . "\" . GoalFileOrPath
-            if FileExist(FileFolderOfInterest)
-              return FileFolderOfInterest
-          }
-        }
-        return false
-    }
-
-  ShowStatusText(Text,Duration)
-    {
-      SetTimer, RemoveStatusText, %Duration%
-      GuiControl,, StatusText, Status: %Text%
-      return
-    }
-
-  ArrayContainsValue(haystack, needle) ; Thanks Blauhirn for this function
-    {
-      if(!isObject(haystack))
-          return false
-      if(haystack.Length()==0)
-          return false
-      for k,v in haystack
-          if(v==needle)
-              return true
-      return false
-    }
-
-  GetMouseYRatio()
-    {
-      AspectRatio := Round(A_ScreenWidth / A_ScreenHeight,2)
-      If AspectRatio = 1.78 ;16:9
-        return 0.03738
-      else if AspectRatio = 1.33 ;4:3
-        return 0.028
-      else if AspectRatio = 1.60 ;16:10
-        return 0.0336
-      else if AspectRatio = 2.39 ;21:9
-        return 0.042
-      else
-        return Round(AspectRatio / 4.761904761904762,5) ;User is using some crazy resolution, try guessing the correct value. (Correct values are on PCGW. Eg: 1920x1080 / X = 0.3738. Find X by dividing the divisor by quotient)"
-    }

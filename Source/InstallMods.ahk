@@ -1,95 +1,94 @@
-InstallMod(ModFileFullPath)
-  {
-    debug("InstallMod function starting. The target file is: " . ModFileFullPath)
-    fileinstall,7zip\7z.exe,%A_Temp%\FO76ModMan.temp\7z.exe ;7zip is used for unzipping files.
-    fileinstall,7zip\7z.dll,%A_Temp%\FO76ModMan.temp\7z.dll
-    TempUnzippingFolder := A_Temp . "\FO76ModMan.temp\UnzippedMods"
-    global ModsFolder
-
-    if (GetSelectedFileSubtype(ModFileFullPath) = "zipped")
+  InstallMod(ModFileFullPath)
     {
-      debug("InstallMod - The file is zipped")
-      fileremovedir,%TempUnzippingFolder%,1 ;Dir needs to be empty so we can double-check anything actually got extracted.
-      ZipFileType := (ZipFileContainsMod(ModFileFullPath)) ;Stops the function being re-triggered multiple times and spamming the debugger.
-      if (ZipFileType = "ERROR") ;7zip gives an error if it encounters a corrupted file. So need to take that into account.
+      debug("InstallMod function starting. The target file is: " . ModFileFullPath)
+      fileinstall,7zip\7z.exe,%A_Temp%\FO76ModMan.temp\7z.exe ;7zip is used for unzipping files.
+      fileinstall,7zip\7z.dll,%A_Temp%\FO76ModMan.temp\7z.dll
+      TempUnzippingFolder := A_Temp . "\FO76ModMan.temp\UnzippedMods"
+      global ModsFolder
+
+      if (GetSelectedFileSubtype(ModFileFullPath) = "zipped")
       {
-        debug("InstallMod - The file is corrupt?")
-        msgbox,,Error!,7zip could not open the file:`n%ModFileFullPath%`nas an archive`, it may be corrupt.`n`nTry manually extracting it`, and then either use the "Install a mod" button if it's a .ba2 mod. Or use the "Compile a mod" button if it's a loose file mod.
-        return false
-      }
-      else if !(ZipFileType)
-      {
-        debug("InstallMod - The file does not contain a mod file")
-        msgbox,,Error!,The selected zip file does not contain any .ba2 or mod files. Please make sure you've selected one that does.`n`nYou selected the file:`n`n%ModFileFullPath%
-        return false
-      }
-      else if (ZipFileType = "Loose")
-      {
-        debug("InstallMod - The file contains loose files")
-        msgbox,4,Mod Compiler,The zip file:`n%ModFileFullPath%`nappears to be a loose-file mod. It must be compiled to .ba2 in order to be used.`nWould you like to attempt to compile it?
-        ifmsgbox yes
+        debug("InstallMod - The file is zipped")
+        fileremovedir,%TempUnzippingFolder%,1 ;Dir needs to be empty so we can double-check anything actually got extracted.
+        ZipFileType := (ZipFileContainsMod(ModFileFullPath)) ;Stops the function being re-triggered multiple times and spamming the debugger.
+        if (ZipFileType = "ERROR") ;7zip gives an error if it encounters a corrupted file. So need to take that into account.
         {
-          InputBox, ChosenModName, Mod Name, Please enter a name to call this mod., , 250, 150
-          if (ChosenModName)
-          {
-            UnzipFile(ModFileFullPath,TempUnzippingFolder,0)
-            ifexist,%ModsFolder%\%ChosenModName%.ba2
-            {
-              msgbox,4,Conflicting Mod,A mod called "%ChosenModName%" already exists. Did you want to overwrite it?
-              ifmsgbox yes
-                return % CompileMod(TempUnzippingFolder,ChosenModName)
-              else
-                return false
-            }
-            else
-              return % CompileMod(TempUnzippingFolder,ChosenModName)
-          }
-        }
-        else
+          debug("InstallMod - The file is corrupt?")
+          msgbox,,Error!,7zip could not open the file:`n%ModFileFullPath%`nas an archive`, it may be corrupt.`n`nTry manually extracting it`, and then either use the "Install a mod" button if it's a .ba2 mod. Or use the "Compile a mod" button if it's a loose file mod.
           return false
-      }
-      else
-      {
-        debug("InstallMod - unzipping files to: " . TempUnzippingFolder)
-        TotalBa2InZip = 0
-        UnzipFile(ModFileFullPath,TempUnzippingFolder,1)
-        loop,files,%TempUnzippingFolder%\*.ba2
-          TotalBa2InZip ++
-        if TotalBa2InZip = 1
+        }
+        else if !(ZipFileType)
         {
-          loop,files,%TempUnzippingFolder%\*.ba2
+          debug("InstallMod - The file does not contain a mod file")
+          msgbox,,Error!,The selected zip file does not contain any .ba2 or mod files. Please make sure you've selected one that does.`n`nYou selected the file:`n`n%ModFileFullPath%
+          return false
+        }
+        else if (ZipFileType = "Loose")
+        {
+          debug("InstallMod - The file contains loose files")
+          msgbox,4,Mod Compiler,The zip file:`n%ModFileFullPath%`nappears to be a loose-file mod. It must be compiled to .ba2 in order to be used.`nWould you like to attempt to compile it?
+          ifmsgbox yes
           {
-            debug("InstallMod - Found the file " . A_LoopFileName . " in " . TempUnzippingFolder . ", attempting install via Installba2..")
-            if A_Index = 1
-              return % Installba2(A_LoopFileFullPath)
+            InputBox, ChosenModName, Mod Name, Please enter a name to call this mod., , 250, 150
+            if (ChosenModName)
+            {
+              UnzipFile(ModFileFullPath,TempUnzippingFolder,0)
+              ifexist,%ModsFolder%\%ChosenModName%.ba2
+              {
+                msgbox,4,Conflicting Mod,A mod called "%ChosenModName%" already exists. Did you want to overwrite it?
+                ifmsgbox yes
+                  return % CompileMod(TempUnzippingFolder,ChosenModName)
+                else
+                  return false
+              }
+              else
+                return % CompileMod(TempUnzippingFolder,ChosenModName)
+            }
           }
+          else
+            return false
         }
         else
+        {
+          debug("InstallMod - unzipping files to: " . TempUnzippingFolder)
+          TotalBa2InZip = 0
+          UnzipFile(ModFileFullPath,TempUnzippingFolder,1)
+          loop,files,%TempUnzippingFolder%\*.ba2
+            TotalBa2InZip ++
+          if TotalBa2InZip = 1
           {
             loop,files,%TempUnzippingFolder%\*.ba2
             {
               debug("InstallMod - Found the file " . A_LoopFileName . " in " . TempUnzippingFolder . ", attempting install via Installba2..")
-              Installba2(A_LoopFileFullPath)
+              if A_Index = 1
+                return % Installba2(A_LoopFileFullPath)
             }
-            return % "Multiple mods from zip file."
           }
+          else
+            {
+              loop,files,%TempUnzippingFolder%\*.ba2
+              {
+                debug("InstallMod - Found the file " . A_LoopFileName . " in " . TempUnzippingFolder . ", attempting install via Installba2..")
+                Installba2(A_LoopFileFullPath)
+              }
+              return % "Multiple mods from zip file."
+            }
+        }
+        ;fileremovedir,%TempUnzippingFolder%,1 ;May as well tidy up now that we're done with extracting.
       }
-      ;fileremovedir,%TempUnzippingFolder%,1 ;May as well tidy up now that we're done with extracting.
+      else if instr(ModFileFullPath,".ba2") ;Don't need an if because the GUI can only pick from .ba2 and zip files.
+      {
+        debug("InstallMod - attempting install of " . ModFileFullPath . " via Installba2 function..")
+        return % Installba2(ModFileFullPath)
+      }
+      else
+      {
+        debug("InstallMod - attempted install of " . ModFileFullPath . " but it was not a valid filetype?")
+        msgbox,,Error!,Attempted to install a mod that is not a .ba2 file?`nThe mod that was specified to install was:`n%ModFileFullPath%`n`nMake sure you've selected the right file and try again.
+      }
+      return false
     }
-    else if instr(ModFileFullPath,".ba2") ;Don't need an if because the GUI can only pick from .ba2 and zip files.
-    {
-      debug("InstallMod - attempting install of " . ModFileFullPath . " via Installba2 function..")
-      return % Installba2(ModFileFullPath)
-    }
-    else
-    {
-      debug("InstallMod - attempted install of " . ModFileFullPath . " but it was not a valid filetype?")
-      msgbox,,Error!,Attempted to install a mod that is not a .ba2 file?`nThe mod that was specified to install was:`n%ModFileFullPath%`n`nMake sure you've selected the right file and try again.
-    }
-    return false
-  }
 
-;Sub-functions of InstallMod
   InstallBa2(TheModFullPath)
     {
       debug("InstallBa2 - Going to attempt to install: " . TheModFullPath)
@@ -195,6 +194,29 @@ InstallMod(ModFileFullPath)
         }
     }
 
+  CombineMods(FileList,FileName,Format:="") ;Use archive2 to combine a list of files.
+    {
+      if (Format)
+        Format := " -format=" . Format
+      global ModsFolder
+      HiddenCommandPrompt("""" A_Temp . "\FO76ModMan.temp\ModCompiler\Archive2.exe"" -s=""" . FileList . """" . Format . " -c=""" . ModsFolder . "\" . FileName)
+    }
+
+  ExtractMod(TheMod,ModExtractionPath)
+    {
+    global ModsFolder
+      ifnotexist,%ModExtractionPath%
+        FileCreateDir,%ModExtractionPath%
+      else
+      {
+        FileRecycle,%ModExtractionPath%
+        FileCreateDir,%ModExtractionPath%
+      }
+      HiddenCommandPrompt("""" . A_Temp . "\FO76ModMan.temp\bsab.exe"" /e """ . ModsFolder . "\" . TheMod . """" . " """ . ModExtractionPath . """")
+    return
+    }
+
+
 ;Utility
   GetSelectedFileSubtype(ModFileFullPath)
     {
@@ -285,8 +307,24 @@ InstallMod(ModFileFullPath)
       return false
     }
 
-  GetFileNameFromPath(FileFullPath)
-  {
-    FileFullPathArray := StrSplit(FileFullPath,"\")
-    return FileFullPathArray[FileFullPathArray.length()] ;The last entry in the array is the filename when split by \
-  }
+  HasBeenModified(TheMod)
+    {
+      global ModsFolder
+
+      FileGetTime,CurrentModifiedDate,%ModsFolder%\%TheMod%
+      Iniread,OldModifiedDate,%A_Temp%\FO76ModMan.temp\ModModifiedDateDatabase.ini,ModifiedDates,%TheMod%
+
+      if CurrentModifiedDate = %OldModifiedDate%
+        return false
+      else
+      {
+        IniWrite,%CurrentModifiedDate%,%A_Temp%\FO76ModMan.temp\ModModifiedDateDatabase.ini,ModifiedDates,%TheMod%
+        return true
+      }
+    }
+
+  ModAlreadyEnabled(Query)
+    {
+      Iniread, Value,ModManagerPrefs.ini,Mod Enabled,%Query%
+      return Value
+    }

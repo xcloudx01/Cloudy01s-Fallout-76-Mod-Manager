@@ -14,6 +14,47 @@
       return
     }
 
+  GetBethesdaLauncherLocation()
+    {
+      global ModsFolder
+      LauncherExeFile := "BethesdaNetLauncher.exe"
+      if (ModsFolder) ;Launcher is likely 2-steps above the data folder. So we should check there.
+      {
+        ModsFolderArray := strsplit(ModsFolder,"\")
+        Loop % ModsFolderArray.length() - 3 ;Want the root folder to check for bethesda launcher
+        {
+          if A_Index = 1
+            GameParentFolder := ModsFolderArray[A_Index]
+          else
+            GameParentFolder := GameParentFolder . "\" . ModsFolderArray[A_Index]
+        }
+      }
+      LauncherLocation := GetFileFromPossibleLocations([GameParentFolder,"Program Files (x86)\Bethesda.net Launcher","Program Files\Bethesda.net Launcher","Games\Bethesda.net Launcher"], LauncherExeFile)
+      if !(LauncherLocation)
+        return
+      else
+        return % LauncherLocation
+    }
+
+  ;GetGameExePath()
+  ;  {
+  ;    return GetGameRootPath() . "\Fallout76.exe"
+  ;  }
+
+  GetGameRootPath()
+      {
+        global ModsFolder
+        ModsFolderArray := strsplit(ModsFolder,"\")
+        loop % ModsFolderArray.Length() - 1
+        {
+          if A_Index = 1
+            GameExePath := ModsFolderArray[A_Index]
+          else
+            GameExePath := GameExePath . "\" . ModsFolderArray[A_Index]
+        }
+        return GameExePath
+      }
+
 ;Fallout76Custom.ini
   EditCustomIni(Value,Name,Section)
     {
@@ -33,6 +74,9 @@
       return
     }
 
+
+
+
 ;Fallout76.ini
   EditPrefsIni(Value,Name,Section)
     {
@@ -40,6 +84,26 @@
       MakeSureFolderExistsInMyDocs()
       IniWrite,%Value%,%Fallout76PrefsIni%,%Section%,%Name%
       return
+    }
+
+  GetFallout76Ini()
+    {
+    global ModsFolder
+    Debug("Attempting to find Fallout76.ini in game folder.")
+    If !(ModsFolder)
+    {
+      Debug("ModsFolder was not defined.")
+      return
+    }
+    FO76IniFile := SubStr(ModsFolder,1,-5) . "\Fallout76.ini"
+    IfNotExist,%FO76IniFile%
+    {
+      Debug("Couldn't find the ini file, tried looking here:" . FO76IniFile)
+      msgbox, Fallout76.ini was not found in your Fallout76 folder. You may encounter glitches as a result.`n`n Please use the Bethesda Launcher to verify your game files, then re-launch this mod manager.
+      return
+    }
+    Debug("The default Fallout76ini file was found: " . FO76IniFile)
+    return % FO76IniFile
     }
 
 ;GUI
