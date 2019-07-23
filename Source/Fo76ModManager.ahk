@@ -16,7 +16,7 @@
     #NoEnv
     #SingleInstance Force
     #NoTrayIcon
-    VersionNumber = 1.211 (beta)
+    VersionNumber = 1.22
     AppName = Cloudy01's Fallout 76 Mod Manager Ver %VersionNumber%
     debug("Program not working correctly? Copy-paste this into a comment or forum post on https://www.nexusmods.com/fallout76/mods/221 to aid in debugging.`n`nOutput log file:`nVersion: " . VersionNumber) ;Should format the top of the log file to aid users.
     Fallout76PrefsIni = %A_MyDocuments%\My Games\Fallout 76\Fallout76Prefs.ini
@@ -99,7 +99,7 @@
 ;;;;;;;;;;;;;
   CreateGUI:
     debug("Making GUI..")
-    DesiredGUIHeight = 240 ;Default height if zero mods are found. Height is added later on on a per mod found basis.
+    DesiredGUIHeight = 260 ;Default height if zero mods are found. Height is added later on on a per mod found basis.
 
     ;We should find which settings need to be pre-filled on the GUI if they have saved settings for these already defined.
       IntroCheckbox := DefaultGUICheckedStatus(Fallout76CustomIni,"General","sIntroSequence",1) ;These need to be either blank or "Checked" in AHK Language so the GUI can create them accordingly.
@@ -121,6 +121,7 @@
     Gui, Add, Button,gSaveCustomIniButton, Save Settings
     Gui, Add, Button,gToggleNWButton, Enable Nuclear Winter Mode
     Gui, Add, Button,gLaunchGameButton, Launch Fallout 76!
+    Gui, Add, Button,gRefreshGUI, Refresh Mod List
     Gui, Add, Text, w1 h1, ;vertical padding
     Gui, Add, Text, w150 h20, Graphics Tweaks:
     Gui, Add, CheckBox, w100 h15 vIntroVideosStatus %IntroCheckbox%, Intro videos
@@ -163,6 +164,12 @@
           ModStatus%CurrentModNumber% = 0
         }
         DesiredGUIHeight := DesiredGUIHeight + 17 ;Expand the GUI to fit the current mod in it.
+
+      ;Detect updated mods that need to be recompiled. (They would be outdated ingame without this.)
+        if !(WantCompile) && (ModStatus%CurrentModNumber%) && FileExist(A_Temp . "\FO76ModMan.temp\ModModifiedDateDatabase.ini") && HasBeenModified(A_LoopFileName)
+        MsgBox, 4,, %A_LoopFileName% Was updated!`n`nDid you want to apply this and any other updated mods to the game?
+          ifmsgbox Yes
+            WantCompile = 1
       }
       TotalNumberOfMods := CurrentModNumber ;Used by the save button to determine loop count when saving each mod.
       if TotalNumberOfMods = 0
@@ -189,6 +196,9 @@
       if  DesiredGUIHeight <= 475 ;User has little/no mods. So we should at least make the GUI a decent size to show all the buttons.
         DesiredGUIHeight = 475
       Gui, Show, H%DesiredGUIHeight% W510,%AppName%
+      if (WantCompile) ;Saves the user having to click "save settings" if an update was detected
+        Gosub,SaveCustomIniButton
+        WantCompile = 0
 
     ;Mouse-over tooltip functionality
       Gui, +LastFound
@@ -221,6 +231,11 @@
 ;;;;;;;;;;;;;;;;
 
   ;GUI Subroutines
+  RefreshGUI:
+  Gui,destroy
+  Gosub,CreateGUI
+  return
+
     GuiSize:
       UpdateScrollBars(A_Gui, A_GuiWidth * 1.5, A_GuiHeight)
       return
@@ -649,6 +664,7 @@
 
   HoverOverElementHelp(wParam, lParam, Msg)
     {
+      global AppName
       MouseGetPos,,,, OutputVarControl
       ;Folders
         global ModFolderHelp
@@ -659,24 +675,27 @@
 
       ;Tweaks
         else IfEqual, OutputVarControl, Button4
-        Help := "Disables all mods and custom DLLs so you can play NW mode"
+        {
+          If !WinActive(AppName,"Nuclear Winter mode is active") ;This is the output debug button on the 2nd GUI.
+          Help := "Disables all mods and custom DLLs so you can play NW mode"
+        }
         ;else IfEqual, OutputVarControl, Button3
           ;Help := "Mods are currently set to load in alphabetical/numerical order.`nIf this causes issues, rename the mod you want to have higher priority to have a 1 infront of it.`n`nEg: PerkLoadoutManager > 1PerkLoadoutManager`n`nThis will be made automatic in a future update, but for now this is a work-around."
-        else IfEqual, OutputVarControl, Button6
-        	Help := "Unchecking this will make the game start up instantly, without having to watch the Bethesda logo movie."
         else IfEqual, OutputVarControl, Button7
-        	Help := "Unchecking this will disable any motion blur.`n`n(May improve FPS)"
+        	Help := "Unchecking this will make the game start up instantly, without having to watch the Bethesda logo movie."
         else IfEqual, OutputVarControl, Button8
-        	Help := "Unchecking this disables all depth of field effects.`n`n(Will improve FPS)"
+        	Help := "Unchecking this will disable any motion blur.`n`n(May improve FPS)"
         else IfEqual, OutputVarControl, Button9
-        	Help := "Unchecking this allows the FPS to run as high as possible.`n(Improves FPS on powerful machines. Improves input lag)`n`n*Leave this checked if you experience screen tearing"
+        	Help := "Unchecking this disables all depth of field effects.`n`n(Will improve FPS)"
         else IfEqual, OutputVarControl, Button10
-          Help := "Unchecking this will remove the grass ingame.`n`n(Improves FPS, may improve visibility)"
+        	Help := "Unchecking this allows the FPS to run as high as possible.`n(Improves FPS on powerful machines. Improves input lag)`n`n*Leave this checked if you experience screen tearing"
         else IfEqual, OutputVarControl, Button11
-        	Help := "The game reads up/down mouse movement at a different speed than left/right movement, which can throw off your aim.`nChecking this makes mouse movement consistent.`n`n*Your mouse movement may be increased too much whilst standing still, but works fine while you're moving."
+          Help := "Unchecking this will remove the grass ingame.`n`n(Improves FPS, may improve visibility)"
         else IfEqual, OutputVarControl, Button12
+        	Help := "The game reads up/down mouse movement at a different speed than left/right movement, which can throw off your aim.`nChecking this makes mouse movement consistent.`n`n*Your mouse movement may be increased too much whilst standing still, but works fine while you're moving."
+        else IfEqual, OutputVarControl, Button13
         	Help := "The faster you move your mouse, the further your aim goes.`nPersonal preference if you like this on or off."
-        else IfEqual, OutputVarControl, Static11
+        else IfEqual, OutputVarControl, Static14
           DllCall("SetCursor","UInt",DllCall("LoadCursor","UInt",NULL,"Int",32649,"UInt")) ;Change to hand icon
       tooltip % Help
       ;tooltip % OutputVarControl ; Debug

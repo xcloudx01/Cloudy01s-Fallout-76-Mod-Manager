@@ -4,15 +4,15 @@
 This tool makes it a snap to install new mods and manage existing ones. It also makes it easy to quickly enable/disable various tweaks.
 No need to fumble around with the Fallout76Custom.ini file anymore, this takes care of it all for you, and even creates one for you if you haven't made one yet already.
 The mod manager will automatically detect what kind of mod you've enabled (by scanning its contents), and assign it to the correct load order.
-It works on this logic:
-Mod contains a "strings" file > sResourceStartUpArchiveList
-Anything else > sResourceArchive2List
+It will also combine multiple mods into just a few .ba2 files, so you can run as many mods as you like.
 
 Features:
 - Quickly install and uninstall mods
 - Quickly enable/disable mods.
+- Auto combines multiple mods into just a few .ba2 files. So you can have tons of mods enabled at once.
 - Compile mods into .ba2 files.
 - Quickly turn on/off various tweaks.
+- Detects mods that have been updated since it was last ran.
 
 ## Initial Setup
 1. Download the .exe file and run it.
@@ -28,11 +28,12 @@ Features:
 ## Uninstalling mods
 1. Right-click the mod you want to uninstall and then click the button "Uninstall" which is followed by the name of the mod. Eg "Uninstall Bag.ba2"
 
+## Nuclear winter mode
+- Before you play Nuclear Winter, just click the "Enable Nuclear Winter Mode" button. Your customini file will be disabled, and the following dll files will also be disabled: x3daudio1_7.dll, dxgi.dll, d3d11.dll. When you're done, just press the "Disable Nuclear Winter Mode" button.
+
+
 
 ## Notes
-The manager assigns mods in each category to load in alphabetical order. The ability to change it to a custom order will be added in the future.
-If a mod is loading in the wrong order, add a "1" to the start of the filename to bump it up to the top of the load order. Eg: PerkLoadoutManager.ba2 > 1PerkLoadoutManager.ba2
-If a mod is found to be enabled in the .ini file but its .ba2 file is missing, it will be auto-removed from the .ini file.
 No tweaks you've manually set in the .ini file will be overwritten, unless specifically changed within the Mod Manager, such as enabling/disabling tweaks.
 
 ### Credits

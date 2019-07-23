@@ -307,7 +307,7 @@
       return false
     }
 
-  HasBeenModified(TheMod)
+  HasBeenModified(TheMod) ;Has been updated
     {
       global ModsFolder
 
