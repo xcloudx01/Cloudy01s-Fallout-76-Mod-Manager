@@ -290,16 +290,3 @@ InstallMod(ModFileFullPath)
     FileFullPathArray := StrSplit(FileFullPath,"\")
     return FileFullPathArray[FileFullPathArray.length()] ;The last entry in the array is the filename when split by \
   }
-
-  InstallArchive2()
-  {
-    Global ModCompilerDir
-    Ifnotexist,%ModCompilerDir%\Archive2.exe
-      Fileinstall,Archive2\Archive2.exe,%ModCompilerDir%\Archive2.exe
-    IfNotExist,%ModCompilerDir%\Archive2Interop.dll
-      Fileinstall,Archive2\Archive2Interop.dll,%ModCompilerDir%\Archive2Interop.dll
-    IfNotExist,%ModCompilerDir%\Microsoft.WindowsAPICodePack.dll
-      Fileinstall,Archive2\Microsoft.WindowsAPICodePack.dll,%ModCompilerDir%\Microsoft.WindowsAPICodePack.dll
-    IfNotExist,%ModCompilerDir%\Microsoft.WindowsAPICodePack.Shell.dll
-      Fileinstall,Archive2\Microsoft.WindowsAPICodePack.Shell.dll,%ModCompilerDir%\Microsoft.WindowsAPICodePack.Shell.dll
-  }

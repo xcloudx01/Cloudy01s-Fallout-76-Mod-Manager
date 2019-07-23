@@ -1,84 +1,88 @@
+;Includes
+  #include InstallMods.ahk
+  #Include IniHandling.ahk
+
 ;;;;;;;;;;;;;;;;;;;;;;
 ;Pre-run
 ;;;;;;;;;;;;;;;;;;;;;;
-  ;Temp files
+{
+  ; Temp files
     ifnotexist,%A_Temp%\FO76ModMan.temp
       filecreatedir,%A_Temp%\FO76ModMan.temp
     FileInstall, bsab.exe, %A_Temp%\FO76ModMan.temp\bsab.exe,1
+    FileInstall, Donate.png, %A_Temp%\FO76ModMan.temp\Donate.png
 
-  ;System vars
+  ; System vars
     #NoEnv
     #SingleInstance Force
     #NoTrayIcon
-    VersionNumber = 1.2
+    VersionNumber = 1.21 (beta)
     AppName = Cloudy01's Fallout 76 Mod Manager Ver %VersionNumber%
     debug("Program not working correctly? Copy-paste this into a comment or forum post on https://www.nexusmods.com/fallout76/mods/221 to aid in debugging.`n`nOutput log file:`nVersion: " . VersionNumber) ;Should format the top of the log file to aid users.
     Fallout76PrefsIni = %A_MyDocuments%\My Games\Fallout 76\Fallout76Prefs.ini
 
-  ;Includes
-    #include InstallMods.ahk
-    #Include IniHandling.ahk
-
-  ;Help info that appears in multiple places.
-    ;IniFileHelp = This typically is in your my documents folder\My Games\Fallout 76`n`nEg: C:\Users\USERNAME\Documents\My Games\Fallout 76`n`nIf you don't have a Fallout76Custom.ini file, then copy Fallout76.ini and rename it to Fallout76Custom.ini, and then use Notepad to make the file empty.
+  ; Help info that appears in multiple places.
     ModFolderHelp = This should be the data folder in Fallout76`n`nEg: C:\Program Files (x86)\Bethesda.net Launcher\Games\Fallout76\Data
 
-  ;Check for the settings file, do a first time setup if not found (We need to know what folder the mods are in so we can populate the GUI with them.)
+  ; Do a first time setup (We need to know what folder the mods are in so we can populate the GUI with them.)
     ifnotexist,ModManagerPrefs.ini
-    {
-      debug("ModManagerPrefs.ini wasn't found.")
-      ModsFolder := GetFileFromPossibleLocations(["Program Files","Program Files (x86)","Games"],"Bethesda.net Launcher\Games\Fallout76\Data")
-      if !(ModsFolder) ;Auto-detect wasn't able to successfully find the right folder. Ask user to do it manually.
       {
-        debug("Couldn't auto-detect where the mods folder is.")
-        msgbox,,Welcome!,Welcome to the mod manager. In order to use it, please select the folder where your mods are installed.`n`n%ModFolderHelp%
-        SetupSelectModFolder:
-          FileSelectFolder,ModsFolder,,2
-          IfNotExist,%ModsFolder%\*.ba2
-          {
-            debug("The user provided ModsFolder: " . ModsFolder . " But it didn't contain any .ba2 files")
-            msgbox,5,Error!,The folder you selected does not contain any .ba2 mod files. Please try again by selecting the folder where mods are installed.`n`n%ModFolderHelp%
-            ifMsgBox Retry
-              goto,SetupSelectModFolder
-            else
-              Exitapp
-          }
+        debug("ModManagerPrefs.ini wasn't found.")
+        ModsFolder := GetFileFromPossibleLocations(["Program Files","Program Files (x86)","Games"],"Bethesda.net Launcher\Games\Fallout76\Data")
+        if !(ModsFolder) ;Auto-detect wasn't able to successfully find the right folder. Ask user to do it manually.
+        {
+          debug("Couldn't auto-detect where the mods folder is.")
+          msgbox,,Welcome!,Welcome to the mod manager. In order to use it, please select the folder where your mods are installed.`n`n%ModFolderHelp%
+
+          SetupSelectModFolder:
+            FileSelectFolder,ModsFolder,,2
+            IfNotExist,%ModsFolder%\*.ba2
+            {
+              debug("The user provided ModsFolder: " . ModsFolder . " But it didn't contain any .ba2 files")
+              msgbox,5,Error!,The folder you selected does not contain any .ba2 mod files. Please try again by selecting the folder where mods are installed.`n`n%ModFolderHelp%
+              ifMsgBox Retry
+                goto,SetupSelectModFolder
+              else
+                Exitapp
+            }
+        }
+        Fallout76CustomIni = %A_MyDocuments%\My Games\Fallout 76\Fallout76Custom.ini
+        BethesdaLauncherExeFile := GetBethesdaLauncherLocation()
+        gosub,SaveSettingsFile
       }
-      Fallout76CustomIni = %A_MyDocuments%\My Games\Fallout 76\Fallout76Custom.ini
-      BethesdaLauncherExeFile := GetBethesdaLauncherLocation()
-      gosub,SaveSettingsFile
-    }
     else
       gosub,LoadSettingsFile
 
-  ;Get the list of currently enabled mods. The GUI needs this to default mods to on/off
+  ; Get the list of currently enabled mods. The GUI needs this to default mods to on/off
     Iniread,sResourceArchive2List,%Fallout76CustomIni%,Archive,sResourceArchive2List
     Iniread,sResourceStartUpArchiveList,%Fallout76CustomIni%,Archive,sResourceStartUpArchiveList
     Iniread,sResourceIndexFileList,%Fallout76CustomIni%,Archive,sResourceIndexFileList
 
-  ;Handle scrolling the UI
+  ; Handle scrolling the UI
     OnMessage(0x115, "OnScroll") ; WM_VSCROLL
     OnMessage(0x114, "OnScroll") ; WM_HSCROLL
     Gui, +Resize +0x300000 ; WS_VSCROLL | WS_HSCROLL
 
-    ;Install Archive2 (We need it to compile mods.)
-      ModCompilerDir = %A_Temp%\FO76ModMan.temp\ModCompiler
-      ifnotexist,%ModCompilerDir%
-        filecreatedir,%ModCompilerDir%
-      Ifnotexist,%ModCompilerDir%\Archive2.exe
-        Fileinstall,Archive2\Archive2.exe,%ModCompilerDir%\Archive2.exe
-      IfNotExist,%ModCompilerDir%\Archive2Interop.dll
-        Fileinstall,Archive2\Archive2Interop.dll,%ModCompilerDir%\Archive2Interop.dll
-      IfNotExist,%ModCompilerDir%\Microsoft.WindowsAPICodePack.dll
-        Fileinstall,Archive2\Microsoft.WindowsAPICodePack.dll,%ModCompilerDir%\Microsoft.WindowsAPICodePack.dll
-      IfNotExist,%ModCompilerDir%\Microsoft.WindowsAPICodePack.Shell.dll
-        Fileinstall,Archive2\Microsoft.WindowsAPICodePack.Shell.dll,%ModCompilerDir%\Microsoft.WindowsAPICodePack.Shell.dll
+  ;Install Archive2 (We need it to compile mods.)
+    ModCompilerDir = %A_Temp%\FO76ModMan.temp\ModCompiler
+    ifnotexist,%ModCompilerDir%
+      filecreatedir,%ModCompilerDir%
+    Ifnotexist,%ModCompilerDir%\Archive2.exe
+      Fileinstall,Archive2\Archive2.exe,%ModCompilerDir%\Archive2.exe
+    IfNotExist,%ModCompilerDir%\Archive2Interop.dll
+      Fileinstall,Archive2\Archive2Interop.dll,%ModCompilerDir%\Archive2Interop.dll
+    IfNotExist,%ModCompilerDir%\Microsoft.WindowsAPICodePack.dll
+      Fileinstall,Archive2\Microsoft.WindowsAPICodePack.dll,%ModCompilerDir%\Microsoft.WindowsAPICodePack.dll
+    IfNotExist,%ModCompilerDir%\Microsoft.WindowsAPICodePack.Shell.dll
+      Fileinstall,Archive2\Microsoft.WindowsAPICodePack.Shell.dll,%ModCompilerDir%\Microsoft.WindowsAPICodePack.Shell.dll
+}
 
 ;;;;;;;;;;;;;
 ;GUI
 ;;;;;;;;;;;;;
   CreateGUI:
     debug("Making GUI..")
+    ;TODO: Make sure donate button not cut off.
     DesiredGUIHeight = 205 ;Default height if zero mods are found. Height is added later on on a per mod found basis.
 
     ;We should find which settings need to be pre-filled on the GUI if they have saved settings for these already defined.
@@ -93,12 +97,9 @@
     Gui, Add, Text, x22 y15 w150 h20 , Fallout76 Data Folder:
     Gui, Add, Edit, x135 y9 w340 h20 vModsFolder ReadOnly,%ModsFolder% ;Has to be read-only otherwise the user could type in a value and not save it, then the script assumes it hasn't been changed. Just helps avoid user confusion
     Gui, Add, Button, x478 y9 w30 h20 gSelectModFolderButton, ..
-    ;Gui, Add, Text, x22 y37 w150 h20 , Fallout76Custom.ini:
-    ;Gui, Add, Edit, x122 y30 w330 h20 vFallout76CustomIni,%Fallout76CustomIni%
-    gui,font,Bold
+    Gui, font, Bold
     Gui, Add, Text, x20 y34 w450 h20 vStatusText
-    gui,font,
-    ;Gui, Add, Button, x455 y30 w30 h20 gSelectIniFileButton, .. ;Define ini file button
+    Gui, font,
     Gui, Add, Text, w1 h1 x340 y55,
     Gui, Add, Button,gInstallModButton, Install a mod
     Gui, Add, Button,gSaveCustomIniButton, Save Settings
@@ -119,7 +120,7 @@
     Gui, Add, Button,gCompileModButton, Compile a mod
     Gui, Add, Button,gOutputDebugButton, Output debug log
     Gui, Add, Text,
-    Gui, Add, Picture, gDonateButton, Donate.png
+    Gui, Add, Picture, gDonateButton, %A_Temp%\FO76ModMan.temp\Donate.png
     Gui, Add, CheckBox, x65 y55 gToggleAllMods vToggleAllModsCheckbox, Check/Uncheck all mods.
     Gui, Add, Text, x22 y55 w30 h20, Mods:
 
@@ -241,11 +242,12 @@
 
       ToggleAllMods:
         Loop % TotalNumberOfMods
-        If !(ShouldTickAllMods)
-          GuiControl,,ModStatus%A_Index%,0
-        Else
-          GuiControl,,ModStatus%A_Index%,1
-        Toggle(ShouldTickAllMods)
+        {
+          If !(ShouldTickAllMods)
+            GuiControl,,ModStatus%A_Index%,0
+          Else
+            GuiControl,,ModStatus%A_Index%,1
+        }
         return
 
   ;INI Files
@@ -313,15 +315,9 @@
         else
           EditPrefsIni(0,"iPresentInterval","Display")
         if GrassStatus = 0
-        {
           EditCustomIni(0,"bAllowCreateGrass","Grass")
-          ;EditCustomIni(1,"iMinGrassSize","Grass") ; - BorderXer said this isn't needed?
-        }
         else
-        {
           DeleteFromCustomIni("bAllowCreateGrass","Grass")
-          ;DeleteFromCustomIni("iMinGrassSize","Grass")
-        }
 
       ;Mouse
         if MouseSensitivityTweakStatus = 1
@@ -346,7 +342,7 @@
         gui,submit,NoHide
         debug("SaveModListToCustomIni subroutine running.")
 
-        ;Files we'll need to use tomerge mods into each .ba2 file, so the fallout76custom.ini has as little characters as possible.
+        ;Files we'll need to use to merge mods into each .ba2 file, so the fallout76custom.ini has as little characters as possible.
           StartupArchiveFileList := A_Temp . "\FO76ModMan.temp\StartupArchiveFileList.txt"
           Archive2FileList := A_Temp . "\FO76ModMan.temp\Archive2FileList.txt"
           Archive2TexturesList := A_Temp . "\FO76ModMan.temp\Archive2TextureFileList.txt"
@@ -355,15 +351,15 @@
           FileDelete, %Archive2TexturesList%
 
         TotalNumberOfActiveMods := 0
-        loop %TotalNumberOfMods%
+        loop % TotalNumberOfMods ;So the GUI can show how many mods there are in total to compile.
         {
           if ModStatus%A_Index% = 1
             TotalNumberOfActiveMods ++
         }
 
-        loop %TotalNumberOfMods%
+        loop % TotalNumberOfMods
         {
-          EditModManagerIni(ModStatus%A_Index%,ModName%A_Index%,"Mod Enabled")
+          EditModManagerIni(ModStatus%A_Index%,ModName%A_Index%,"Mod Enabled") ;So the settings file can keep track of what mod is enabled.
           if ModStatus%A_Index% = 1
           {
             ModExtractionPath := A_Temp . "\FO76ModMan.temp\Mods\" . ModName%A_Index% . "\Data"
@@ -670,8 +666,8 @@ HiddenCommandPrompt(cmd)
         ;    Help := "This is where your Fallout76Custom.ini is stored. Typically in your 'My documents folder\My Games\Fallout 76'`n`nEg: C:\Users\USERNAME\Documents\My Games\Fallout 76`n`nIf you don't have a Fallout76Custom.ini file, when you click 'Save settings' we'll create one for you."
 
       ;Tweaks
-        else IfEqual, OutputVarControl, Button3
-          Help := "Mods are currently set to load in alphabetical/numerical order.`nIf this causes issues, rename the mod you want to have higher priority to have a 1 infront of it.`n`nEg: PerkLoadoutManager > 1PerkLoadoutManager`n`nThis will be made automatic in a future update, but for now this is a work-around."
+        ;else IfEqual, OutputVarControl, Button3
+          ;Help := "Mods are currently set to load in alphabetical/numerical order.`nIf this causes issues, rename the mod you want to have higher priority to have a 1 infront of it.`n`nEg: PerkLoadoutManager > 1PerkLoadoutManager`n`nThis will be made automatic in a future update, but for now this is a work-around."
         else IfEqual, OutputVarControl, Button5
         	Help := "Unchecking this will make the game start up instantly, without having to watch the Bethesda logo movie."
         else IfEqual, OutputVarControl, Button6
