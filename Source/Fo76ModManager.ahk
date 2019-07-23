@@ -282,8 +282,11 @@
           If !(ShouldTickAllMods)
             GuiControl,,ModStatus%A_Index%,0
           Else
+          {
             GuiControl,,ModStatus%A_Index%,1
+          }
         }
+        toggle(ShouldTickAllMods)
         return
 
   ;INI Files Subroutines
@@ -511,7 +514,11 @@
         ShowStatusText("Game did not start in a reasonable time. Check the Bethesda Launcher.",15000)
       }
       else
+      {
+        ShowStatusText("Game successfully launched.",1000)
+        WinActivate,Fallout76.exe
         debug("LaunchGameButton - The game launched successfully.")
+      }
       return
 
   SaveCustomIniButton:
