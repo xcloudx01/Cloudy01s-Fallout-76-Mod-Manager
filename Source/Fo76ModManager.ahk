@@ -82,8 +82,6 @@
     IfNotExist,%ModCompilerDir%\Microsoft.WindowsAPICodePack.Shell.dll
       Fileinstall,Archive2\Microsoft.WindowsAPICodePack.Shell.dll,%ModCompilerDir%\Microsoft.WindowsAPICodePack.Shell.dll
 
-  Gosub,RenameNWFiles ;Just to make sure the user has renamed ALL their files properly before we begin.
-
   OpenGoalGUI:
     If (NWMode)
       Gosub,MakeNWGUI
@@ -455,7 +453,7 @@
 ;;;;;;;;;;;;;;;;;
 
   DonateButton:
-    run, https://www.ko-fi.com/xcloudx01
+    run, http://ko-fi.com/cloudy01
     return
 
   LaunchGameButton:
